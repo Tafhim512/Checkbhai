@@ -9,7 +9,6 @@ const config: Config = {
     theme: {
         extend: {
             colors: {
-                // Bangladesh-themed vibrant colors
                 primary: {
                     50: '#f0fdf4',
                     100: '#dcfce7',
