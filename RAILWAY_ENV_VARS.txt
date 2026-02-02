@@ -1,0 +1,19 @@
+# ✅ YOUR PRODUCTION ENVIRONMENT VARIABLES
+# Copy these EXACT values to Railway
+
+DATABASE_URL=postgresql+asyncpg://postgres:kaynat103286@db.finpvpvbagygdsqugxao.supabase.co:5432/postgres
+
+SECRET_KEY=REPLACE_THIS_WITH_OUTPUT_FROM_OPENSSL_COMMAND
+
+ADMIN_EMAIL=admin@checkbhai.com
+
+ADMIN_PASSWORD=kaynat103286
+
+PORT=8000
+
+ALLOWED_ORIGINS=https://checkbhai.vercel.app,https://checkbhai-*.vercel.app
+
+# ⚠️ IMPORTANT NOTES:
+# 1. DATABASE_URL MUST have "asyncpg" - notice the change from your original
+# 2. Generate SECRET_KEY by running: openssl rand -hex 32
+# 3. Update ALLOWED_ORIGINS with your actual Vercel URL after frontend deployment
