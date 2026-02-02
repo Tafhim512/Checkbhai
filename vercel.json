@@ -1,6 +1,0 @@
-{
-    "buildCommand": "cd checkbhai-frontend && npm install && npm run build",
-    "outputDirectory": "checkbhai-frontend/.next",
-    "framework": "nextjs",
-    "installCommand": "cd checkbhai-frontend && npm install"
-}
