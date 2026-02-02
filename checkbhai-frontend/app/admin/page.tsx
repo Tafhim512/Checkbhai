@@ -102,80 +102,79 @@ export default function AdminPage() {
             {/* AI Retraining Section */}
             <div className="card mb-8">
                 <h2 className="text-2xl font-semibold mb-4">🤖 AI Model Retraining (Human-in-Loop)</h2>
-                <p className="text-gray-600 mb-4">
-                    Add new training examples to improve the AI model's accuracy
-                </p>
+                Add new training examples to improve the AI model&apos;s accuracy
+            </p>
 
-                <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Message Text</label>
-                    <textarea
-                        className="input-field min-h-[100px]"
-                        placeholder="Enter a scam or legitimate message example..."
-                        value={retrainText}
-                        onChange={(e) => setRetrainText(e.target.value)}
-                    />
-                </div>
-
-                <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Label</label>
-                    <div className="flex gap-4">
-                        <label className="flex items-center">
-                            <input
-                                type="radio"
-                                name="label"
-                                value="Scam"
-                                checked={retrainLabel === 'Scam'}
-                                onChange={() => setRetrainLabel('Scam')}
-                                className="mr-2"
-                            />
-                            <span>Scam</span>
-                        </label>
-                        <label className="flex items-center">
-                            <input
-                                type="radio"
-                                name="label"
-                                value="Legit"
-                                checked={retrainLabel === 'Legit'}
-                                onChange={() => setRetrainLabel('Legit')}
-                                className="mr-2"
-                            />
-                            <span>Legitimate</span>
-                        </label>
-                    </div>
-                </div>
-
-                {retrainSuccess && (
-                    <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700">
-                        {retrainSuccess}
-                    </div>
-                )}
-
-                <button
-                    onClick={handleRetrain}
-                    disabled={retrainLoading || !retrainText.trim()}
-                    className="btn-primary disabled:opacity-50"
-                >
-                    {retrainLoading ? 'Retraining...' : 'Add to Training & Retrain Model'}
-                </button>
+            <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Message Text</label>
+                <textarea
+                    className="input-field min-h-[100px]"
+                    placeholder="Enter a scam or legitimate message example..."
+                    value={retrainText}
+                    onChange={(e) => setRetrainText(e.target.value)}
+                />
             </div>
 
-            {/* Recent Messages */}
-            <div className="card">
-                <h2 className="text-2xl font-semibold mb-6">Recent Messages</h2>
-                <div className="space-y-4">
-                    {messages.map((msg) => (
-                        <div key={msg.id} className="border-b border-gray-200 pb-4 last:border-0">
-                            <div className="flex justify-between items-start mb-2">
-                                <RiskBadge level={msg.risk_level} confidence={msg.confidence} />
-                                <span className="text-xs text-gray-500">
-                                    {new Date(msg.created_at).toLocaleString()}
-                                </span>
-                            </div>
-                            <p className="text-sm text-gray-700">{msg.message_text}</p>
-                        </div>
-                    ))}
+            <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Label</label>
+                <div className="flex gap-4">
+                    <label className="flex items-center">
+                        <input
+                            type="radio"
+                            name="label"
+                            value="Scam"
+                            checked={retrainLabel === 'Scam'}
+                            onChange={() => setRetrainLabel('Scam')}
+                            className="mr-2"
+                        />
+                        <span>Scam</span>
+                    </label>
+                    <label className="flex items-center">
+                        <input
+                            type="radio"
+                            name="label"
+                            value="Legit"
+                            checked={retrainLabel === 'Legit'}
+                            onChange={() => setRetrainLabel('Legit')}
+                            className="mr-2"
+                        />
+                        <span>Legitimate</span>
+                    </label>
                 </div>
             </div>
+
+            {retrainSuccess && (
+                <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700">
+                    {retrainSuccess}
+                </div>
+            )}
+
+            <button
+                onClick={handleRetrain}
+                disabled={retrainLoading || !retrainText.trim()}
+                className="btn-primary disabled:opacity-50"
+            >
+                {retrainLoading ? 'Retraining...' : 'Add to Training & Retrain Model'}
+            </button>
         </div>
+
+            {/* Recent Messages */ }
+    <div className="card">
+        <h2 className="text-2xl font-semibold mb-6">Recent Messages</h2>
+        <div className="space-y-4">
+            {messages.map((msg) => (
+                <div key={msg.id} className="border-b border-gray-200 pb-4 last:border-0">
+                    <div className="flex justify-between items-start mb-2">
+                        <RiskBadge level={msg.risk_level} confidence={msg.confidence} />
+                        <span className="text-xs text-gray-500">
+                            {new Date(msg.created_at).toLocaleString()}
+                        </span>
+                    </div>
+                    <p className="text-sm text-gray-700">{msg.message_text}</p>
+                </div>
+            ))}
+        </div>
+    </div>
+        </div >
     );
 }
