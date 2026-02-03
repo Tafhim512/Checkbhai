@@ -31,4 +31,4 @@ EXPOSE 8000
 
 # Run application using shell to expand PORT variable
 # This ensures we listen on the port Railway assigns (fixes 503 Service Unavailable)
-CMD python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+CMD ["sh", "-c", "python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

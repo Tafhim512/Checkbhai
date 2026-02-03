@@ -19,16 +19,29 @@ async def lifespan(app: FastAPI):
     print("🚀 Starting CheckBhai Backend...")
     
     # Initialize database
-    await init_db()
+    try:
+        print("🗄️ Initializing database...")
+        await init_db()
+        print("✅ Database initialized successfully")
+    except Exception as e:
+        print(f"❌ Database initialization failed: {e}")
+        # In production, we might want to continue or exit depending on strategy
+        # For now, let's log it clearly
     
     # Create default admin user
-    admin_email = os.getenv("ADMIN_EMAIL", "admin@checkbhai.com")
-    admin_password = os.getenv("ADMIN_PASSWORD", "admin123")
-    await create_admin_user(admin_email, admin_password)
+    try:
+        admin_email = os.getenv("ADMIN_EMAIL", "admin@checkbhai.com")
+        admin_password = os.getenv("ADMIN_PASSWORD", "admin123")
+        await create_admin_user(admin_email, admin_password)
+    except Exception as e:
+        print(f"❌ Admin user creation failed: {e}")
     
     # Initialize AI engine (train model if needed)
-    ai_engine = get_ai_engine()
-    print(f"✅ AI Engine ready (trained: {ai_engine.is_trained})")
+    try:
+        ai_engine = get_ai_engine()
+        print(f"✅ AI Engine ready (trained: {ai_engine.is_trained})")
+    except Exception as e:
+        print(f"❌ AI Engine initialization failed: {e}")
     
     print("✅ CheckBhai Backend ready!")
     
