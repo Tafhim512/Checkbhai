@@ -39,7 +39,15 @@ const EntitySearch: React.FC = () => {
                 setResult(data);
             }
         } catch (err: any) {
-            setError(err.response?.data?.detail || err.response?.data?.error || "Search failed. Please ensure the backend is running.");
+            console.error("Search API Error:", err);
+            const detail = err.response?.data?.detail || err.response?.data?.error;
+            if (detail) {
+                setError(`${detail}`);
+            } else if (err.message === "Network Error") {
+                setError("Network error. Please check if your Render backend is awake (it may take 1 min to spin up).");
+            } else {
+                setError("Something went wrong. Please ensure your OpenAI Key and Backend URL are set in Vercel settings.");
+            }
         } finally {
             setLoading(false);
         }
