@@ -22,12 +22,19 @@ const EntitySearch: React.FC = () => {
         e.preventDefault();
         if (!identifier) return;
 
+        // Auto-detect if it's a message if the user pasted a long text but forgot to change the dropdown
+        let currentType = type;
+        if (identifier.length > 30 && currentType !== "message" && !identifier.includes("/") && !identifier.includes(".")) {
+            currentType = "message";
+            setType("message");
+        }
+
         setLoading(true);
         setError("");
         setResult(null);
 
         try {
-            if (type === "message") {
+            if (currentType === "message") {
                 const data = await api.checkMessage(identifier);
                 setResult({
                     ...data,
