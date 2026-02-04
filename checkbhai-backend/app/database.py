@@ -38,7 +38,13 @@ engine = create_async_engine(
     DATABASE_URL, 
     echo=False, 
     future=True,
-    pool_pre_ping=True  # Important for pooler stability
+    pool_pre_ping=True,
+    connect_args={
+        "command_timeout": 10,
+        "server_settings": {
+            "application_name": "CheckBhai-Backend"
+        }
+    }
 )
 
 # Create async session maker
@@ -178,8 +184,10 @@ async def get_db():
             await session.close()
 
 async def init_db():
-    """Initialize database tables"""
+    """Initialize database tables with connection verification"""
+    print(f"DEBUG: Attempting to connect to DB...")
     async with engine.begin() as conn:
+        print("DEBUG: Connection established, creating tables...")
         await conn.run_sync(Base.metadata.create_all)
     print("Database initialized successfully")
 
