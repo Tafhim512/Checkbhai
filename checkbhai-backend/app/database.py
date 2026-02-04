@@ -12,18 +12,34 @@ from datetime import datetime
 import os
 
 # Database URL from environment variable
-# Auto-correct scheme for asyncpg if needed
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql+asyncpg://postgres:postgres@localhost:5432/checkbhai"
-)
+DATABASE_URL = os.getenv("DATABASE_URL", "")
 
-if DATABASE_URL and DATABASE_URL.startswith("postgresql://"):
-    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
-    print("Auto-corrected DATABASE_URL scheme for asyncpg")
+if DATABASE_URL:
+    # Auto-correct scheme for asyncpg
+    if DATABASE_URL.startswith("postgresql://"):
+        DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+    
+    # Ensure SSL for Supabase/Production
+    if "supabase.co" in DATABASE_URL or "pooler.supabase.com" in DATABASE_URL:
+        if "sslmode=" not in DATABASE_URL:
+            connector = "&" if "?" in DATABASE_URL else "?"
+            DATABASE_URL += f"{connector}sslmode=require"
+    
+    # Log connection attempt (redacting password)
+    try:
+        parts = DATABASE_URL.split("@")
+        if len(parts) > 1:
+            print(f"Connecting to DB at: {parts[1].split('/')[0]}")
+    except:
+        pass
 
 # Create async engine
-engine = create_async_engine(DATABASE_URL, echo=True, future=True)
+engine = create_async_engine(
+    DATABASE_URL, 
+    echo=False, 
+    future=True,
+    pool_pre_ping=True  # Important for pooler stability
+)
 
 # Create async session maker
 AsyncSessionLocal = async_sessionmaker(
