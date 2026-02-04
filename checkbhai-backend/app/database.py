@@ -21,9 +21,13 @@ if DATABASE_URL:
     
     # Ensure SSL for Supabase/Production
     if "supabase.co" in DATABASE_URL or "pooler.supabase.com" in DATABASE_URL:
-        if "sslmode=" not in DATABASE_URL:
+        # asyncpg uses 'ssl=require', not 'sslmode=require'
+        if "sslmode=" in DATABASE_URL:
+            DATABASE_URL = DATABASE_URL.replace("sslmode=", "ssl=", 1)
+            
+        if "ssl=" not in DATABASE_URL:
             connector = "&" if "?" in DATABASE_URL else "?"
-            DATABASE_URL += f"{connector}sslmode=require"
+            DATABASE_URL += f"{connector}ssl=require"
     
     # Log connection attempt (redacting password)
     try:
