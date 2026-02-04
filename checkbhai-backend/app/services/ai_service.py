@@ -53,7 +53,7 @@ class OpenAIProvider:
             return json.loads(response.choices[0].message.content)
         except Exception as e:
             logger.error(f"OpenAI analysis failed: {e}")
-            return None
+            raise e
 
 class GroqProvider:
     def __init__(self, api_key: str):
@@ -95,11 +95,12 @@ class GroqProvider:
             return json.loads(response.choices[0].message.content)
         except Exception as e:
             logger.error(f"Groq analysis failed: {e}")
-            return None
+            raise e
 
 class AIService:
     def __init__(self):
         self.providers: List[AIProvider] = []
+        self.disabled_providers: set = set()
         
         # Initialize providers based on ENV
         openai_key = os.getenv("OPENAI_API_KEY")
@@ -120,19 +121,30 @@ class AIService:
         Tries providers in order. Falls back to next if one fails.
         """
         for provider in self.providers:
+            if provider.name in self.disabled_providers:
+                continue
+
             logger.info(f"Attempting analysis with {provider.name}...")
-            result = await provider.analyze_text(text)
-            if result:
-                result["provider"] = provider.name
-                return result
+            try:
+                result = await provider.analyze_text(text)
+                if result:
+                    result["provider"] = provider.name
+                    return result
+            except Exception as e:
+                # If we get a 401 (Unauthorized) or 429 (Quota), disable this provider
+                if "401" in str(e) or "429" in str(e) or "auth" in str(e).lower():
+                    logger.warning(f"Disabling {provider.name} due to credential/quota error: {e}")
+                    self.disabled_providers.add(provider.name)
+                else:
+                    logger.error(f"{provider.name} failed with non-auth error: {e}")
         
         # Absolute fallback if all providers fail or are missing
         return {
-            "is_scam": False, # Neutral
+            "is_scam": False,
             "prediction": "Unknown",
             "confidence": 0.0,
-            "explanation_en": "Deep AI analysis unavailable. Using basic patterns.",
-            "explanation_bn": "ডিপ এআই বিশ্লেষণ পাওয়া যায়নি। বেসিক প্যাটার্ন ব্যবহার করা হচ্ছে।",
+            "explanation_en": "Analysis completed using pattern matching (Deep AI unavailable).",
+            "explanation_bn": "প্যাটার্ন ম্যাচিং ব্যবহার করে বিশ্লেষণ সম্পন্ন হয়েছে (ডিপ এআই অপশনটি বর্তমানে অফলাইন)।",
             "red_flags": [],
             "provider": "None"
         }
