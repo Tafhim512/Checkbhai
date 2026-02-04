@@ -49,11 +49,11 @@ const EntitySearch: React.FC = () => {
             console.error("Search API Error:", err);
             const detail = err.response?.data?.detail || err.response?.data?.error;
             if (detail) {
-                setError(`${detail}`);
-            } else if (err.message === "Network Error") {
-                setError("Network error. Please check if your Render backend is awake (it may take 1 min to spin up).");
+                setError(`Server Error: ${detail}`);
+            } else if (err.code === "ERR_NETWORK" || err.message === "Network Error") {
+                setError("Backend Unreachable. Double-check your Render URL and ensure it's not suspended.");
             } else {
-                setError("Something went wrong. Please ensure your OpenAI Key and Backend URL are set in Vercel settings.");
+                setError("An unexpected error occurred. Please check your internet connection.");
             }
         } finally {
             setLoading(false);

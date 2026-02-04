@@ -36,12 +36,14 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"Admin user creation failed: {e}")
     
-    # Initialize AI engine (train model if needed)
+    # Initialize AI service (Check providers)
     try:
-        ai_engine = get_ai_engine()
-        print(f"AI Engine ready (trained: {ai_engine.is_trained})")
+        from app.services.ai_service import get_ai_service
+        ai_service = get_ai_service()
+        providers = [p.name for p in ai_service.providers]
+        print(f"AI Service ready. Active providers: {', '.join(providers) if providers else 'None (Rules Only)'}")
     except Exception as e:
-        print(f"AI Engine initialization failed: {e}")
+        print(f"AI Service initialization failed: {e}")
     
     print("CheckBhai Backend ready!")
     
@@ -103,7 +105,7 @@ async def root():
 @app.get("/health")
 async def health():
     """Health check endpoint"""
-    return {"status": "healthy", "service": "CheckBhai API"}
+    return {"status": "ok", "service": "CheckBhai API"}
 
 if __name__ == "__main__":
     import uvicorn

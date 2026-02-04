@@ -36,15 +36,22 @@ if DATABASE_URL:
         pass
 
 # Create async engine
-# We pass SSL explicitly in connect_args for asyncpg stability
+# We pass SSL explicitly in connect_args for asyncpg stability.
+# To handle "self-signed certificate" errors common on Render/Supabase,
+# we create a custom SSL context.
+import ssl
+ctx = ssl.create_default_context()
+ctx.check_hostname = False
+ctx.verify_mode = ssl.CERT_NONE
+
 engine = create_async_engine(
     DATABASE_URL, 
     echo=False, 
     future=True,
     pool_pre_ping=True,
     connect_args={
-        "ssl": True,  # Generic "True" is best for Supabase
-        "command_timeout": 30,
+        "ssl": ctx,  # Use our custom context to bypass verification errors
+        "command_timeout": 60,
         "server_settings": {
             "application_name": "CheckBhai-Backend"
         }

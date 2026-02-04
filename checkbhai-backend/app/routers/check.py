@@ -8,7 +8,7 @@ from typing import Optional
 
 from app.database import Message, User, get_db
 from app.models import MessageCheck, ScamCheckResult
-from app.ai_engine import get_ai_engine
+from app.services.ai_service import get_ai_service
 from app.rules_engine import RulesEngine
 from app.auth import get_current_user_optional
 
@@ -27,23 +27,24 @@ async def check_message(
     
     message_text = message_data.message
     
-    # Get Enhanced AI analysis (Async)
-    ai_engine = get_ai_engine()
-    ai_analysis = await ai_engine.analyze_text(message_text)
+    # NEW: Use Unified AI service with Fallback
+    ai_service = get_ai_service()
+    ai_result = await ai_service.analyze_message(message_text)
     
-    # Get rules-based analysis
+    # Get local rules-based analysis
     rules_engine = RulesEngine()
     red_flags_rules, rules_score = rules_engine.check_message(message_text)
     
     # Combine results
-    # Use LLM probability if available, otherwise local model
-    scam_prob = ai_analysis.get("scam_probability", ai_analysis["confidence"])
+    # Use AI probability if available
+    scam_prob = ai_result.get("scam_probability", 0.0)
+    is_scam_ai = ai_result.get("is_scam", False)
     
     # Calculate combined score
     combined_score = (scam_prob * 70) + (rules_score * 0.3)
     
     # Determine final risk level
-    if combined_score >= 60 or ai_analysis["is_scam"]:
+    if combined_score >= 60 or is_scam_ai:
         risk_level = "High"
     elif combined_score >= 30:
         risk_level = "Medium"
@@ -51,13 +52,13 @@ async def check_message(
         risk_level = "Low"
     
     # Collect all red flags
-    all_red_flags = list(set(ai_analysis.get("red_flags", []) + red_flags_rules))
+    all_red_flags = list(set(ai_result.get("red_flags", []) + red_flags_rules))
     
-    # Generate explanation (Prefer LLM explanation)
-    explanation = ai_analysis.get("explanation_en", 
+    # Generate explanation (Prefer AI explanation)
+    explanation = ai_result.get("explanation_en", 
         rules_engine.generate_explanation(message_text, risk_level, all_red_flags, scam_prob)
     )
-    explanation_bn = ai_analysis.get("explanation_bn",
+    explanation_bn = ai_result.get("explanation_bn",
         rules_engine.generate_explanation_bn(message_text, risk_level, all_red_flags)
     )
     
@@ -83,7 +84,7 @@ async def check_message(
         red_flags=all_red_flags,
         explanation=explanation,
         explanation_bn=explanation_bn,
-        ai_prediction=ai_analysis["prediction"],
+        ai_prediction="Scam" if is_scam_ai else "Legit",
         ai_confidence=scam_prob,
         rules_score=rules_score,
         message_id=str(message_record.id)
