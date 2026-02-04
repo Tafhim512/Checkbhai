@@ -51,9 +51,9 @@ const EntitySearch: React.FC = () => {
             if (detail) {
                 setError(`Server Error: ${detail}`);
             } else if (err.code === "ERR_NETWORK" || err.message === "Network Error") {
-                setError("Backend Unreachable. Double-check your Render URL and ensure it's not suspended.");
+                setError(`Connection Error: The frontend cannot reach the backend. Please check your Render URL/Status.`);
             } else {
-                setError("An unexpected error occurred. Please check your internet connection.");
+                setError(`Error: ${err.message}`);
             }
         } finally {
             setLoading(false);

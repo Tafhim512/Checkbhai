@@ -39,6 +39,10 @@ async def lifespan(app: FastAPI):
     # Initialize AI service (Check providers)
     try:
         from app.services.ai_service import get_ai_service
+        import os
+        print(f"DEBUG: OPENAI_API_KEY loaded: {bool(os.getenv('OPENAI_API_KEY'))}")
+        print(f"DEBUG: GROQ_API_KEY loaded: {bool(os.getenv('GROQ_API_KEY'))}")
+        
         ai_service = get_ai_service()
         providers = [p.name for p in ai_service.providers]
         print(f"AI Service ready. Active providers: {', '.join(providers) if providers else 'None (Rules Only)'}")
