@@ -15,21 +15,19 @@ import os
 DATABASE_URL = os.getenv("DATABASE_URL", "")
 
 if DATABASE_URL:
-    # Auto-correct scheme for asyncpg
-    if DATABASE_URL.startswith("postgresql://"):
+    # 1. Ensure the dialect is postgresql+asyncpg
+    if DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
+    elif DATABASE_URL.startswith("postgresql://"):
         DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
     
-    # Ensure SSL for Supabase/Production
-    if "supabase.co" in DATABASE_URL or "pooler.supabase.com" in DATABASE_URL:
-        # asyncpg uses 'ssl=require', not 'sslmode=require'
-        if "sslmode=" in DATABASE_URL:
-            DATABASE_URL = DATABASE_URL.replace("sslmode=", "ssl=", 1)
-            
-        if "ssl=" not in DATABASE_URL:
-            connector = "&" if "?" in DATABASE_URL else "?"
-            DATABASE_URL += f"{connector}ssl=require"
+    # 2. Strip ALL ssl/sslmode parameters from the URL string
+    # asyncpg is very picky and prefers these in connect_args
+    import re
+    DATABASE_URL = re.sub(r'[?&]sslmode=[^&]*', '', DATABASE_URL)
+    DATABASE_URL = re.sub(r'[?&]ssl=[^&]*', '', DATABASE_URL)
     
-    # Log connection attempt (redacting password)
+    # 3. Log connection attempt (redacted)
     try:
         parts = DATABASE_URL.split("@")
         if len(parts) > 1:
@@ -38,13 +36,15 @@ if DATABASE_URL:
         pass
 
 # Create async engine
+# We pass SSL explicitly in connect_args for asyncpg stability
 engine = create_async_engine(
     DATABASE_URL, 
     echo=False, 
     future=True,
     pool_pre_ping=True,
     connect_args={
-        "command_timeout": 10,
+        "ssl": True,  # Generic "True" is best for Supabase
+        "command_timeout": 30,
         "server_settings": {
             "application_name": "CheckBhai-Backend"
         }
