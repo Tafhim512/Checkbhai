@@ -78,6 +78,7 @@ export const api = {
             return response.data;
         } catch (error: any) {
             console.warn('OpenAI Serverless failed, falling back to backend:', error.message);
+            console.log('DEBUG: Attempting fallback to:', API_BASE_URL + '/check/message');
             // Fallback to local model on Render backend
             const response = await apiClient.post('/check/message', { message });
             const data = response.data;
