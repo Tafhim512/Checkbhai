@@ -54,7 +54,7 @@ async def get_admin_stats(
 async def get_all_messages(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
-    risk_filter: str = Query(None, regex="^(Low|Medium|High)$"),
+    risk_filter: str = Query(None, pattern="^(Low|Medium|High)$"),
     current_admin: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
