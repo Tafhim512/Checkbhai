@@ -13,6 +13,11 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Message is required' }, { status: 400 });
         }
 
+        if (!process.env.OPENAI_API_KEY) {
+            console.error('OPENAI_API_KEY is missing from environment variables');
+            return NextResponse.json({ error: 'OpenAI API Key is not configured in Vercel' }, { status: 500 });
+        }
+
         const response = await openai.chat.completions.create({
             model: 'gpt-4o-mini',
             messages: [
@@ -44,6 +49,14 @@ export async function POST(req: Request) {
 
     } catch (error: any) {
         console.error('OpenAI API Error:', error);
-        return NextResponse.json({ error: 'Failed to analyze message' }, { status: 500 });
+
+        let errorMessage = 'Failed to analyze message';
+        if (error.status === 401) errorMessage = 'Invalid OpenAI API Key';
+        if (error.status === 429) errorMessage = 'OpenAI Quota Exceeded';
+
+        return NextResponse.json({
+            error: errorMessage,
+            details: error.message
+        }, { status: error.status || 500 });
     }
 }
