@@ -169,7 +169,7 @@ async def init_db():
 
 async def create_admin_user(email: str, password: str):
     """Create an admin user"""
-    from auth import hash_password
+    from app.auth import hash_password
     
     async with AsyncSessionLocal() as session:
         # Check if admin already exists

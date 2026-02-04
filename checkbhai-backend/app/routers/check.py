@@ -6,11 +6,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 
-from database import Message, User, get_db
-from models import MessageCheck, ScamCheckResult
-from ai_engine import get_ai_engine
-from rules_engine import RulesEngine
-from auth import get_current_user_optional
+from app.database import Message, User, get_db
+from app.models import MessageCheck, ScamCheckResult
+from app.ai_engine import get_ai_engine
+from app.rules_engine import RulesEngine
+from app.auth import get_current_user_optional
 
 router = APIRouter(prefix="/check", tags=["scam-detection"])
 

@@ -7,7 +7,7 @@ from sqlalchemy import select, and_, or_
 from typing import List, Dict
 import uuid
 
-from database import Entity, Report, Evidence
+from app.database import Entity, Report, Evidence
 
 class NetworkDetector:
     """Detects links between different entities based on reports and identifiers"""

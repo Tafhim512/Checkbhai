@@ -13,7 +13,7 @@ from sklearn.pipeline import Pipeline
 import numpy as np
 from openai import AsyncOpenAI
 
-from training_data import get_training_data
+from app.training_data import get_training_data
 
 class AIEngine:
     """AI-powered scam detection using text classification and LLM reasoning"""

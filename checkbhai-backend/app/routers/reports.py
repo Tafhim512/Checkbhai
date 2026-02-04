@@ -9,9 +9,9 @@ from typing import List
 import uuid
 from datetime import datetime
 
-from database import Report, Evidence, Entity, User, Vote, ActivityLog, get_db
-from models import ReportCreate, ReportResponse, VoteCreate
-from auth import get_current_user
+from app.database import Report, Evidence, Entity, User, Vote, ActivityLog, get_db
+from app.models import ReportCreate, ReportResponse, VoteCreate
+from app.auth import get_current_user
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 

@@ -7,10 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, desc
 from typing import List
 
-from database import Message, User, Payment, TrainingData, get_db
-from models import AdminStats, RetrainRequest, MessageHistory
-from auth import get_current_admin
-from ai_engine import get_ai_engine
+from app.database import Message, User, Payment, TrainingData, get_db
+from app.models import AdminStats, RetrainRequest, MessageHistory
+from app.auth import get_current_admin
+from app.ai_engine import get_ai_engine
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 

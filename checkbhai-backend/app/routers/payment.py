@@ -6,9 +6,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 import uuid
 
-from database import Payment, User, get_db
-from models import PaymentCreate, PaymentResponse
-from auth import get_current_user
+from app.database import Payment, User, get_db
+from app.models import PaymentCreate, PaymentResponse
+from app.auth import get_current_user
 
 router = APIRouter(prefix="/payment", tags=["payment"])
 

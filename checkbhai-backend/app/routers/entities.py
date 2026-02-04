@@ -9,9 +9,9 @@ from typing import List, Optional
 import uuid
 from datetime import datetime
 
-from database import Entity, Message, Report, get_db
-from models import EntityCheck, EntityResponse
-from auth import get_current_user_optional
+from app.database import Entity, Message, Report, get_db
+from app.models import EntityCheck, EntityResponse
+from app.auth import get_current_user_optional
 
 router = APIRouter(prefix="/entities", tags=["entities"])
 

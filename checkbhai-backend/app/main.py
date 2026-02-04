@@ -8,9 +8,9 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from contextlib import asynccontextmanager
 import os
 
-from database import init_db, create_admin_user
-from ai_engine import get_ai_engine
-from routers import auth, check, history, payment, admin, entities, reports
+from app.database import init_db, create_admin_user
+from app.ai_engine import get_ai_engine
+from app.routers import auth, check, history, payment, admin, entities, reports
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -108,4 +108,4 @@ async def health():
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8000))
-    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
+    uvicorn.run("app.main:app", host="0.0.0.0", port=port, reload=True)

@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 import os
 
-from database import User, get_db
+from app.database import User, get_db
 
 # Security configuration
 SECRET_KEY = os.getenv("SECRET_KEY", "checkbhai-secret-key-change-in-production-2024")
