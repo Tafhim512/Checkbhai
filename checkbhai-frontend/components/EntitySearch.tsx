@@ -9,7 +9,7 @@ function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+import api from "@/lib/api";
 
 const EntitySearch: React.FC = () => {
     const [identifier, setIdentifier] = useState("");
@@ -27,12 +27,19 @@ const EntitySearch: React.FC = () => {
         setResult(null);
 
         try {
-            const response = await axios.get(`${API_BASE_URL}/entities/check`, {
-                params: { type, identifier }
-            });
-            setResult(response.data);
+            if (type === "message") {
+                const data = await api.checkMessage(identifier);
+                setResult({
+                    ...data,
+                    identifier: identifier.length > 50 ? identifier.substring(0, 50) + "..." : identifier,
+                    type: "Message / বার্তা"
+                });
+            } else {
+                const data = await api.checkEntity(type, identifier);
+                setResult(data);
+            }
         } catch (err: any) {
-            setError(err.response?.data?.detail || "Something went wrong. Please try again.");
+            setError(err.response?.data?.detail || err.response?.data?.error || "Search failed. Please ensure the backend is running.");
         } finally {
             setLoading(false);
         }
@@ -52,12 +59,13 @@ const EntitySearch: React.FC = () => {
                         <option className="text-black" value="bkash">bKash / বিকাশ</option>
                         <option className="text-black" value="nagad">Nagad / নগদ</option>
                         <option className="text-black" value="website">Website / ওয়েবসাইট</option>
+                        <option className="text-black" value="message">Full Message / পূর্ণ বার্তা</option>
                     </select>
                     <input
                         type="text"
                         value={identifier}
                         onChange={(e) => setIdentifier(e.target.value)}
-                        placeholder="Search number or URL... / সার্চ করুন..."
+                        placeholder={type === "message" ? "Paste the suspicious message here..." : "Search number or URL... / সার্চ করুন..."}
                         className="flex-1 bg-transparent p-3 text-white placeholder-white/50 outline-none border-none text-lg"
                     />
                     <button
@@ -103,13 +111,39 @@ const EntitySearch: React.FC = () => {
                             </span>
                         </div>
 
-                        <p className="mt-4 text-white/80 leading-relaxed text-sm font-medium">
-                            {result.risk_score >= 70
-                                ? "This identity is strongly linked to scam activities. Avoid transactions at all costs. / এই নম্বর/আইডিটি প্রতারণার সাথে জড়িত। লেনদেন করবেন না।"
-                                : result.risk_score >= 30
-                                    ? "Some suspicious reports found. Verify identity before sending any money. / কিছু সন্দেহজনক তথ্য পাওয়া গেছে। টাকা পাঠানোর আগে যাচাই করুন।"
-                                    : "Verified as safe for now. Continue with standard caution. / বর্তমানে নিরাপদ বলে মনে হচ্ছে। সাধারণ সতর্কতা বজায় রাখুন।"}
-                        </p>
+                        {/* AI Explanation / Reasoning */}
+                        {(result.explanation_en || result.explanation_bn) ? (
+                            <div className="mt-6 space-y-4">
+                                <p className="text-white/90 leading-relaxed text-sm font-medium border-l-2 border-white/20 pl-4 italic">
+                                    {result.explanation_en}
+                                </p>
+                                <p className="text-white/90 leading-relaxed text-sm font-medium border-l-2 border-white/20 pl-4 italic">
+                                    {result.explanation_bn}
+                                </p>
+                            </div>
+                        ) : (
+                            <p className="mt-4 text-white/80 leading-relaxed text-sm font-medium">
+                                {result.risk_score >= 70
+                                    ? "This identity is strongly linked to scam activities. Avoid transactions at all costs. / এই নম্বর/আইডিটি প্রতারণার সাথে জড়িত। লেনদেন করবেন না।"
+                                    : result.risk_score >= 30
+                                        ? "Some suspicious reports found. Verify identity before sending any money. / কিছু সন্দেহজনক তথ্য পাওয়া গেছে। টাকা পাঠানোর আগে যাচাই করুন।"
+                                        : "Verified as safe for now. Continue with standard caution. / বর্তমানে নিরাপদ বলে মনে হচ্ছে। সাধারণ সতর্কতা বজায় রাখুন।"}
+                            </p>
+                        )}
+
+                        {/* Red Flags List */}
+                        {result.red_flags && result.red_flags.length > 0 && (
+                            <div className="mt-6">
+                                <h4 className="text-[10px] font-bold text-red-400 uppercase tracking-widest mb-3">Red Flags Detected</h4>
+                                <div className="flex flex-wrap gap-2">
+                                    {result.red_flags.map((flag: string, i: number) => (
+                                        <span key={i} className="text-[10px] bg-red-500/20 text-red-200 px-2 py-1 rounded border border-red-500/20">
+                                            🚩 {flag}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
                         <div className="mt-8 flex gap-4">
                             <button className="flex-1 bg-white/10 hover:bg-white/20 text-white font-bold py-3 rounded-xl transition-all border border-white/10 text-sm">

@@ -1,26 +1,26 @@
-# CheckBhai Backend Dependencies
+# CheckBhai Backend Dependencies - Optimized for Python 3.11 on Render
 
 # FastAPI and web server
-fastapi==0.109.0
-uvicorn[standard]==0.27.0
-python-multipart==0.0.6
+fastapi
+uvicorn[standard]
+python-multipart
 
 # Database
-sqlalchemy==2.0.25
-asyncpg==0.29.0
-alembic==1.13.1
+sqlalchemy
+asyncpg
+alembic
 
 # Authentication & Security
-python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
-pydantic[email]==2.5.3
+python-jose[cryptography]
+passlib[bcrypt]
+pydantic[email]
 
-# AI/ML
-scikit-learn==1.4.0
-pandas==2.2.0
-numpy==1.26.3
+# AI/ML - Pinned for pre-built wheel compatibility
+pandas==2.1.1
+numpy==1.26.0
+scikit-learn
 
 # Utilities
-python-dotenv==1.0.0
-openai==1.12.0
-httpx==0.26.0
+python-dotenv
+openai
+httpx

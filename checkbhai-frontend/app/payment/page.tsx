@@ -8,7 +8,7 @@ import { useState } from 'react';
 import api from '@/lib/api';
 
 export default function PaymentPage() {
-    const [method, setMethod] = useState<'bkash' | 'rocket' | 'bank'>('bkash');
+    const [method, setMethod] = useState<'bkash' | 'nagad' | 'rocket' | 'bank'>('bkash');
     const [amount, setAmount] = useState(50);
     const [mobileNumber, setMobileNumber] = useState('');
     const [accountNumber, setAccountNumber] = useState('');
@@ -18,9 +18,9 @@ export default function PaymentPage() {
     const [error, setError] = useState('');
 
     const packages = [
-        { checks: 1, price: 50, popular: false },
-        { checks: 10, price: 300, popular: true },
-        { checks: 50, price: 1000, popular: false },
+        { checks: 1, price: 50, popular: false, desc: "Single verification" },
+        { checks: 10, price: 300, popular: true, desc: "Best for individuals" },
+        { checks: 100, price: 2000, popular: false, desc: "Scale for Business" },
     ];
 
     const handlePayment = async () => {
@@ -34,7 +34,7 @@ export default function PaymentPage() {
                 method,
             };
 
-            if (method === 'bkash' || method === 'rocket') {
+            if (method === 'bkash' || method === 'nagad' || method === 'rocket') {
                 if (!mobileNumber || mobileNumber.length !== 11) {
                     throw new Error('Please enter a valid 11-digit mobile number');
                 }
@@ -49,167 +49,172 @@ export default function PaymentPage() {
 
             await api.createPayment(paymentData);
             setSuccess(true);
-            // Reset form
             setMobileNumber('');
             setAccountNumber('');
             setBankName('');
         } catch (err: any) {
-            setError(err.message || 'Payment failed. Please try again.');
+            setError(err.message || 'Payment failed. Please ensure the backend is connected.');
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="max-w-4xl mx-auto px-4 py-12">
-            <h1 className="text-3xl font-bold mb-8 text-center">Payment</h1>
-
-            {/* Packages */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-                {packages.map((pkg) => (
-                    <div
-                        key={pkg.checks}
-                        className={`card cursor-pointer transition-all ${amount === pkg.price ? 'ring-4 ring-primary-500' : ''
-                            } ${pkg.popular ? 'ring-2 ring-checkbhai-gold' : ''}`}
-                        onClick={() => setAmount(pkg.price)}
-                    >
-                        {pkg.popular && (
-                            <div className="bg-checkbhai-gold text-white text-xs font-bold px-3 py-1 rounded-full absolute -top-3 left-1/2 transform -translate-x-1/2">
-                                POPULAR
-                            </div>
-                        )}
-                        <div className="text-center">
-                            <div className="text-4xl font-bold text-primary-600 mb-2">{pkg.checks}</div>
-                            <div className="text-sm text-gray-600 mb-4">
-                                {pkg.checks === 1 ? 'Check' : 'Checks'}
-                            </div>
-                            <div className="text-3xl font-bold mb-1">{pkg.price} ৳</div>
-                            <div className="text-sm text-gray-500">
-                                {pkg.checks > 1 && `${Math.round(pkg.price / pkg.checks)} ৳ per check`}
-                            </div>
-                        </div>
-                    </div>
-                ))}
-            </div>
-
-            {/* Payment Form */}
-            <div className="card max-w-2xl mx-auto">
-                <h2 className="text-2xl font-semibold mb-6">Select Payment Method</h2>
-
-                {/* Method Selection */}
-                <div className="grid grid-cols-3 gap-4 mb-6">
-                    <button
-                        onClick={() => setMethod('bkash')}
-                        className={`p-4 rounded-lg border-2 transition-all ${method === 'bkash'
-                                ? 'border-pink-500 bg-pink-50'
-                                : 'border-gray-300 hover:border-pink-300'
-                            }`}
-                    >
-                        <div className="text-2xl mb-1">📱</div>
-                        <div className="font-semibold">Bkash</div>
-                    </button>
-                    <button
-                        onClick={() => setMethod('rocket')}
-                        className={`p-4 rounded-lg border-2 transition-all ${method === 'rocket'
-                                ? 'border-purple-500 bg-purple-50'
-                                : 'border-gray-300 hover:border-purple-300'
-                            }`}
-                    >
-                        <div className="text-2xl mb-1">🚀</div>
-                        <div className="font-semibold">Rocket</div>
-                    </button>
-                    <button
-                        onClick={() => setMethod('bank')}
-                        className={`p-4 rounded-lg border-2 transition-all ${method === 'bank'
-                                ? 'border-blue-500 bg-blue-50'
-                                : 'border-gray-300 hover:border-blue-300'
-                            }`}
-                    >
-                        <div className="text-2xl mb-1">🏦</div>
-                        <div className="font-semibold">Bank</div>
-                    </button>
+        <div className="min-h-screen bg-[#0a0a0c] text-white p-6 md:p-12">
+            <div className="max-w-6xl mx-auto">
+                <div className="text-center mb-16">
+                    <h1 className="text-5xl font-black mb-4 tracking-tighter">GET MORE CHECKS</h1>
+                    <p className="text-gray-500 font-bold uppercase text-xs tracking-[0.4em]">Scaling Trust for Everyone</p>
                 </div>
 
-                {/* Mobile Banking Fields */}
-                {(method === 'bkash' || method === 'rocket') && (
-                    <div className="mb-6">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Mobile Number
-                        </label>
-                        <input
-                            type="tel"
-                            maxLength={11}
-                            placeholder="01XXXXXXXXX"
-                            className="input-field"
-                            value={mobileNumber}
-                            onChange={(e) => setMobileNumber(e.target.value.replace(/\D/g, ''))}
+                {/* Packages */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-20">
+                    {packages.map((pkg) => (
+                        <div
+                            key={pkg.checks}
+                            className={`relative p-8 rounded-3xl border-4 transition-all cursor-pointer hover:scale-105 ${amount === pkg.price
+                                ? 'bg-blue-600/10 border-blue-600 shadow-[0_0_30px_rgba(37,99,235,0.2)]'
+                                : 'bg-white/5 border-white/10 hover:border-white/20'
+                                }`}
+                            onClick={() => setAmount(pkg.price)}
+                        >
+                            {pkg.popular && (
+                                <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[10px] font-black px-4 py-1.5 rounded-full shadow-lg">
+                                    MOST POPULAR
+                                </div>
+                            )}
+                            <div className="text-center">
+                                <div className="text-6xl font-black text-white mb-2">{pkg.checks}</div>
+                                <div className="text-sm font-bold text-gray-400 mb-6 uppercase tracking-widest">{pkg.checks === 1 ? 'Check' : 'Checks'}</div>
+                                <div className="text-4xl font-black text-white mb-2">{pkg.price} ৳</div>
+                                <p className="text-xs text-gray-500 font-medium mb-6">{pkg.desc}</p>
+                                {pkg.checks > 1 && (
+                                    <div className="text-[10px] font-bold text-blue-400 uppercase">Save {Math.round((pkg.checks * 50 - pkg.price) / (pkg.checks * 50) * 100)}% per check</div>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Payment Form */}
+                <div className="max-w-xl mx-auto bg-white/5 border border-white/10 p-10 rounded-[40px] shadow-2xl backdrop-blur-xl">
+                    <h2 className="text-2xl font-black mb-10 text-center uppercase tracking-widest">Select Method</h2>
+
+                    {/* Method Selection */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+                        <PaymentMethodButton
+                            active={method === 'bkash'}
+                            onClick={() => setMethod('bkash')}
+                            color="border-pink-600 bg-pink-600/10"
+                            label="bKash"
+                            icon="📱"
+                        />
+                        <PaymentMethodButton
+                            active={method === 'nagad'}
+                            onClick={() => setMethod('nagad')}
+                            color="border-orange-600 bg-orange-600/10"
+                            label="Nagad"
+                            icon="🔥"
+                        />
+                        <PaymentMethodButton
+                            active={method === 'rocket'}
+                            onClick={() => setMethod('rocket')}
+                            color="border-purple-600 bg-purple-600/10"
+                            label="Rocket"
+                            icon="🚀"
+                        />
+                        <PaymentMethodButton
+                            active={method === 'bank'}
+                            onClick={() => setMethod('bank')}
+                            color="border-blue-600 bg-blue-600/10"
+                            label="Bank"
+                            icon="🏦"
                         />
                     </div>
-                )}
 
-                {/* Bank Transfer Fields */}
-                {method === 'bank' && (
-                    <>
-                        <div className="mb-4">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Bank Name
-                            </label>
-                            <input
-                                type="text"
-                                placeholder="e.g., Dutch Bangla Bank"
-                                className="input-field"
-                                value={bankName}
-                                onChange={(e) => setBankName(e.target.value)}
-                            />
-                        </div>
-                        <div className="mb-6">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Account Number
-                            </label>
-                            <input
-                                type="text"
-                                placeholder="Account number"
-                                className="input-field"
-                                value={accountNumber}
-                                onChange={(e) => setAccountNumber(e.target.value)}
-                            />
-                        </div>
-                    </>
-                )}
+                    <div className="space-y-6">
+                        {(method !== 'bank') && (
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Your Mobile Number</label>
+                                <input
+                                    type="tel"
+                                    maxLength={11}
+                                    placeholder="01XXXXXXXXX"
+                                    className="w-full bg-white/5 border border-white/10 p-4 rounded-2xl outline-none focus:border-blue-500 transition-all font-bold"
+                                    value={mobileNumber}
+                                    onChange={(e) => setMobileNumber(e.target.value.replace(/\D/g, ''))}
+                                />
+                            </div>
+                        )}
 
-                {/* Amount Display */}
-                <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-                    <div className="flex justify-between items-center">
-                        <span className="font-semibold">Total Amount:</span>
-                        <span className="text-2xl font-bold text-primary-600">{amount} ৳</span>
+                        {method === 'bank' && (
+                            <>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Bank Name</label>
+                                    <input
+                                        type="text"
+                                        placeholder="e.g. Dutch Bangla Bank"
+                                        className="w-full bg-white/5 border border-white/10 p-4 rounded-2xl outline-none focus:border-blue-500 transition-all font-bold"
+                                        value={bankName}
+                                        onChange={(e) => setBankName(e.target.value)}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Account Number</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Account ID"
+                                        className="w-full bg-white/5 border border-white/10 p-4 rounded-2xl outline-none focus:border-blue-500 transition-all font-bold"
+                                        value={accountNumber}
+                                        onChange={(e) => setAccountNumber(e.target.value)}
+                                    />
+                                </div>
+                            </>
+                        )}
+
+                        <div className="bg-white/5 border border-white/5 p-6 rounded-2xl flex justify-between items-center">
+                            <span className="font-bold text-gray-400 uppercase text-xs tracking-widest">Payable Amount</span>
+                            <span className="text-3xl font-black text-white">{amount} ৳</span>
+                        </div>
+
+                        {error && (
+                            <div className="p-4 bg-red-600/20 border border-red-600/40 rounded-2xl text-red-200 text-xs font-bold text-center">
+                                {error}
+                            </div>
+                        )}
+                        {success && (
+                            <div className="p-4 bg-green-600/20 border border-green-600/40 rounded-2xl text-green-200 text-xs font-bold text-center">
+                                ✅ Order placed! Check your email for next steps.
+                            </div>
+                        )}
+
+                        <button
+                            onClick={handlePayment}
+                            disabled={loading}
+                            className="w-full bg-white text-black font-black py-4 rounded-2xl text-lg hover:scale-[1.02] transition-all disabled:opacity-50"
+                        >
+                            {loading ? 'PROCESSING...' : `PAY ${amount} ৳`}
+                        </button>
+
+                        <p className="text-[9px] text-gray-600 font-bold uppercase text-center mt-6">
+                            Secure Transaction Layer &bull; SSL Encryption Standard
+                        </p>
                     </div>
                 </div>
-
-                {/* Error/Success Messages */}
-                {error && (
-                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-                        {error}
-                    </div>
-                )}
-                {success && (
-                    <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">
-                        ✅ Payment successful! Transaction ID has been sent to your email.
-                    </div>
-                )}
-
-                {/* Submit Button */}
-                <button
-                    onClick={handlePayment}
-                    disabled={loading}
-                    className="btn-primary w-full disabled:opacity-50"
-                >
-                    {loading ? 'Processing...' : `Pay ${amount} ৳`}
-                </button>
-
-                <p className="text-xs text-gray-500 mt-4 text-center">
-                    Note: This is a demo payment system. In production, real payment gateway integration would be required.
-                </p>
             </div>
         </div>
+    );
+}
+
+function PaymentMethodButton({ active, onClick, color, label, icon }: { active: boolean; onClick: () => void; color: string; label: string; icon: string }) {
+    return (
+        <button
+            onClick={onClick}
+            className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center justify-center gap-2 ${active ? color : 'border-white/10 hover:bg-white/5'
+                }`}
+        >
+            <div className="text-2xl">{icon}</div>
+            <div className="text-[10px] font-black uppercase tracking-tighter">{label}</div>
+        </button>
     );
 }

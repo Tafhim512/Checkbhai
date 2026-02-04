@@ -63,9 +63,17 @@ export const api = {
         return typeof window !== 'undefined' && localStorage.getItem('is_admin') === 'true';
     },
 
-    // Check message
+    // Check entity (Phone, bKash, Website, etc.)
+    checkEntity: async (type: string, identifier: string) => {
+        const response = await apiClient.get('/entities/check', {
+            params: { type, identifier }
+        });
+        return response.data;
+    },
+
+    // Check message (Serverless via OpenAI)
     checkMessage: async (message: string) => {
-        const response = await apiClient.post('/check/message', { message });
+        const response = await axios.post('/api/scamCheck', { message });
         return response.data;
     },
 
