@@ -71,10 +71,26 @@ export const api = {
         return response.data;
     },
 
-    // Check message (Serverless via OpenAI)
+    // Check message (Serverless via OpenAI with fallback to backend)
     checkMessage: async (message: string) => {
-        const response = await axios.post('/api/scamCheck', { message });
-        return response.data;
+        try {
+            const response = await axios.post('/api/scamCheck', { message });
+            return response.data;
+        } catch (error: any) {
+            console.warn('OpenAI Serverless failed, falling back to backend:', error.message);
+            // Fallback to local model on Render backend
+            const response = await apiClient.post('/check/message', { message });
+            const data = response.data;
+
+            // Map backend fields to frontend-expected format
+            return {
+                risk_score: (data.confidence * 100).toFixed(0),
+                prediction: data.ai_prediction,
+                explanation_en: data.explanation,
+                explanation_bn: data.explanation_bn || "প্রসেসিং সম্পন্ন হয়েছে।",
+                red_flags: data.red_flags || []
+            };
+        }
     },
 
     // History

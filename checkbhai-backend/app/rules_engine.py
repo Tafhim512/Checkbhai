@@ -124,7 +124,7 @@ class RulesEngine:
             return "Low"
     
     def generate_explanation(self, text: str, risk_level: str, red_flags: List[str], ai_confidence: float = None) -> str:
-        """Generate user-friendly explanation"""
+        """Generate user-friendly explanation in English"""
         if risk_level == "High":
             explanation = "⚠️ **High Risk of Scam!** This message shows multiple red flags commonly seen in scam attempts. "
         elif risk_level == "Medium":
@@ -140,5 +140,19 @@ class RulesEngine:
         
         if ai_confidence and ai_confidence > 0.8:
             explanation += f" Our AI is {int(ai_confidence*100)}% confident in this assessment."
+        
+        return explanation
+
+    def generate_explanation_bn(self, text: str, risk_level: str, red_flags: List[str]) -> str:
+        """Generate user-friendly explanation in Bangla"""
+        if risk_level == "High":
+            explanation = "⚠️ **উচ্চ ঝুঁকি!** এই বার্তাটিতে প্রতারণার একাধিক লক্ষণ পাওয়া গেছে। "
+        elif risk_level == "Medium":
+            explanation = "⚡ **সতর্ক থাকুন।** এই বার্তাটিতে কিছু সন্দেহজনক উপাদান রয়েছে। "
+        else:
+            explanation = "✅ **নিরাপদ মনে হচ্ছে।** এই বার্তায় বড় কোনো প্রতারণার সঙ্কেত পাওয়া যায়নি। "
+        
+        if risk_level in ["High", "Medium"]:
+            explanation += "টাকা বা ব্যক্তিগত তথ্য শেয়ার করার আগে সাবধান হোন। অফিশিয়াল মাধ্যমে পরিচয় যাচাই করুন।"
         
         return explanation

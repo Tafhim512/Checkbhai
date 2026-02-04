@@ -57,6 +57,9 @@ async def check_message(
     explanation = ai_analysis.get("explanation_en", 
         rules_engine.generate_explanation(message_text, risk_level, all_red_flags, scam_prob)
     )
+    explanation_bn = ai_analysis.get("explanation_bn",
+        rules_engine.generate_explanation_bn(message_text, risk_level, all_red_flags)
+    )
     
     # Save to database
     message_record = Message(
@@ -79,6 +82,7 @@ async def check_message(
         confidence=message_record.confidence,
         red_flags=all_red_flags,
         explanation=explanation,
+        explanation_bn=explanation_bn,
         ai_prediction=ai_analysis["prediction"],
         ai_confidence=scam_prob,
         rules_score=rules_score,

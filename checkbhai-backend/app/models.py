@@ -71,6 +71,7 @@ class ScamCheckResult(BaseModel):
     confidence: float
     red_flags: List[str]
     explanation: str
+    explanation_bn: Optional[str] = None
     ai_prediction: Optional[str] = None
     ai_confidence: Optional[float] = None
     rules_score: Optional[int] = None
