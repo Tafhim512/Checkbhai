@@ -6,9 +6,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 import uuid
 
-from app.database import Payment, User, get_db
-from app.models import PaymentCreate, PaymentResponse
-from app.auth import get_current_user
+from database import Payment, User, get_db
+from models import PaymentCreate, PaymentResponse
+from auth import get_current_user
 
 router = APIRouter(prefix="/payment", tags=["payment"])
 
@@ -19,35 +19,28 @@ async def create_payment(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Process a payment
-    Note: This is a simulated payment system
-    Real payment integration requires API credentials from payment providers
+    Process a payment (Simulated)
     """
     
     # Generate transaction ID
     transaction_id = f"TXN-{uuid.uuid4().hex[:12].upper()}"
     
     # Store payment details based on method
-    payment_details = {}
-    if payment_data.method in ['bkash', 'rocket']:
-        payment_details = {
-            "mobile_number": payment_data.mobile_number,
-            "method": payment_data.method
-        }
-    elif payment_data.method == 'bank':
-        payment_details = {
-            "account_number": payment_data.account_number,
-            "bank_name": payment_data.bank_name
-        }
+    payment_details = {
+        "mobile_number": payment_data.mobile_number,
+        "account_number": payment_data.account_number,
+        "bank_name": payment_data.bank_name
+    }
     
     # Create payment record
     payment = Payment(
         user_id=current_user.id,
         amount=payment_data.amount,
         method=payment_data.method,
-        status="completed",  # Simulated - would be "pending" in real system
+        status="completed", # Simulated success
         transaction_id=transaction_id,
-        payment_details=payment_details
+        payment_details=payment_details,
+        tier=payment_data.tier
     )
     
     db.add(payment)

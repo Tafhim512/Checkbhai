@@ -8,23 +8,23 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from contextlib import asynccontextmanager
 import os
 
-from app.database import init_db, create_admin_user
-from app.ai_engine import get_ai_engine
-from app.routers import auth, check, history, payment, admin
+from database import init_db, create_admin_user
+from ai_engine import get_ai_engine
+from routers import auth, check, history, payment, admin, entities, reports
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan events"""
     # Startup
-    print("🚀 Starting CheckBhai Backend...")
+    print("Starting CheckBhai Backend...")
     
     # Initialize database
     try:
-        print("🗄️ Initializing database...")
+        print("Initializing database...")
         await init_db()
-        print("✅ Database initialized successfully")
+        print("Database initialized successfully")
     except Exception as e:
-        print(f"❌ Database initialization failed: {e}")
+        print(f"Database initialization failed: {e}")
         # In production, we might want to continue or exit depending on strategy
         # For now, let's log it clearly
     
@@ -34,21 +34,21 @@ async def lifespan(app: FastAPI):
         admin_password = os.getenv("ADMIN_PASSWORD", "admin123")
         await create_admin_user(admin_email, admin_password)
     except Exception as e:
-        print(f"❌ Admin user creation failed: {e}")
+        print(f"Admin user creation failed: {e}")
     
     # Initialize AI engine (train model if needed)
     try:
         ai_engine = get_ai_engine()
-        print(f"✅ AI Engine ready (trained: {ai_engine.is_trained})")
+        print(f"AI Engine ready (trained: {ai_engine.is_trained})")
     except Exception as e:
-        print(f"❌ AI Engine initialization failed: {e}")
+        print(f"AI Engine initialization failed: {e}")
     
-    print("✅ CheckBhai Backend ready!")
+    print("CheckBhai Backend ready!")
     
     yield
     
     # Shutdown
-    print("👋 Shutting down CheckBhai Backend...")
+    print("Shutting down CheckBhai Backend...")
 
 # Create FastAPI application
 app = FastAPI(
@@ -79,6 +79,8 @@ app.include_router(check.router)
 app.include_router(history.router)
 app.include_router(payment.router)
 app.include_router(admin.router)
+app.include_router(entities.router)
+app.include_router(reports.router)
 
 @app.get("/")
 async def root():
@@ -92,6 +94,8 @@ async def root():
             "history": "/history",
             "payment": "/payment",
             "admin": "/admin",
+            "entities": "/entities",
+            "reports": "/reports",
             "docs": "/docs"
         }
     }
@@ -104,4 +108,4 @@ async def health():
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8000))
-    uvicorn.run("app.main:app", host="0.0.0.0", port=port, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)

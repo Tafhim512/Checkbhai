@@ -7,9 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from typing import List
 
-from app.database import Message, User, get_db
-from app.models import MessageHistory
-from app.auth import get_current_user
+from database import Message, User, get_db
+from models import MessageHistory
+from auth import get_current_user
 
 router = APIRouter(prefix="/history", tags=["history"])
 
