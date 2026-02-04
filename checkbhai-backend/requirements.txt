@@ -1,5 +1,8 @@
 # CheckBhai Backend Dependencies - Optimized for Python 3.11 on Render
 
+# Force use of pre-built wheels for problematic packages
+--only-binary pandas,numpy,scikit-learn
+
 # FastAPI and web server
 fastapi
 uvicorn[standard]
