@@ -2,13 +2,13 @@
 CheckBhai Backend - Main FastAPI application
 """
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from contextlib import asynccontextmanager
 import os
 
-from app.database import init_db, create_admin_user
+from app.database import init_db, create_admin_user, get_db
 from app.ai_engine import get_ai_engine
 from app.routers import auth, check, history, payment, admin, entities, reports
 
@@ -108,6 +108,158 @@ async def root():
 async def health():
     """Health check endpoint"""
     return {"status": "ok", "service": "CheckBhai API"}
+
+@app.get("/seed-db")
+async def seed_db(db = Depends(get_db)):
+    """Temporary endpoint to seed production database"""
+    # Import locally to avoid cluttering main file
+    from sqlalchemy.ext.asyncio import AsyncSession
+    from app.database import User, Entity, Report, Message
+    from app.auth import hash_password
+    from sqlalchemy import select
+    import random
+    from datetime import datetime, timedelta
+    import os
+    
+    # Type check hack
+    if not isinstance(db, AsyncSession):
+        pass # Should theoretically be AsyncSession
+
+    print("🌱 Starting Production Data Seed via API...")
+    
+    # 1. Ensure Admin User
+    admin_email = os.getenv("ADMIN_EMAIL", "admin@checkbhai.com")
+    result = await db.execute(select(User).filter(User.email == admin_email))
+    admin = result.scalars().first()
+    
+    if not admin:
+        print(f"Creating admin user: {admin_email}")
+        admin = User(
+            email=admin_email,
+            password_hash=hash_password(os.getenv("ADMIN_PASSWORD", "admin123")),
+            is_admin=True,
+            reputation_score=100
+        )
+        db.add(admin)
+        await db.commit()
+        await db.refresh(admin)
+    
+    # 2. Seed Entities
+    # High Risk Scammer
+    result = await db.execute(select(Entity).filter(Entity.identifier == "01812345678"))
+    scammer = result.scalars().first()
+    if not scammer:
+        scammer = Entity(
+            type="agent",
+            identifier="01812345678",
+            risk_status="High Risk",
+            confidence_level="High",
+            total_reports=15,
+            scam_reports=14,
+            verified_reports=10,
+            last_checked=datetime.utcnow()
+        )
+        db.add(scammer)
+    
+    # Fake Shop
+    result = await db.execute(select(Entity).filter(Entity.identifier == "facebook.com/fake-shop-bd"))
+    fake_shop = result.scalars().first()
+    if not fake_shop:
+        fake_shop = Entity(
+            type="fb_page",
+            identifier="facebook.com/fake-shop-bd",
+            risk_status="Medium Risk",
+            confidence_level="Medium",
+            total_reports=5,
+            scam_reports=5,
+            verified_reports=2,
+            last_checked=datetime.utcnow()
+        )
+        db.add(fake_shop)
+
+    # Safe Number
+    result = await db.execute(select(Entity).filter(Entity.identifier == "01700000000"))
+    safe_guy = result.scalars().first()
+    if not safe_guy:
+        safe_guy = Entity(
+            type="phone",
+            identifier="01700000000",
+            risk_status="Safe",
+            confidence_level="High",
+            total_reports=0,
+            scam_reports=0,
+            verified_reports=0,
+            last_checked=datetime.utcnow()
+        )
+        db.add(safe_guy)
+        
+    await db.commit()
+    
+    # Refresh to ensure IDs are available
+    await db.refresh(scammer)
+    await db.refresh(fake_shop)
+    
+    # 3. Seed Reports
+    descriptions = [
+        "He asked for advance payment via bKash and then blocked me.",
+        "Fake agent, said my account was locked. Stole 5000tk.",
+        "Total fraud, do not trust this number."
+    ]
+    
+    for desc in descriptions:
+        exists = await db.execute(select(Report).filter(Report.entity_id == scammer.id, Report.description == desc))
+        if not exists.scalars().first():
+            report = Report(
+                entity_id=scammer.id,
+                platform="agent",
+                scam_type="advance_taken",
+                amount_lost=random.randint(500, 5000),
+                currency="BDT",
+                description=desc,
+                status="verified",
+                created_at=datetime.utcnow() - timedelta(days=random.randint(1, 30))
+            )
+            db.add(report)
+
+    exists = await db.execute(select(Report).filter(Report.entity_id == fake_shop.id))
+    if not exists.scalars().first():
+        report = Report(
+            entity_id=fake_shop.id,
+            platform="facebook",
+            scam_type="fake_product",
+            amount_lost=1200,
+            currency="BDT",
+            description="Ordered a watch, received a potato. Page blocked me.",
+            status="pending",
+            created_at=datetime.utcnow() - timedelta(days=2)
+        )
+        db.add(report)
+    
+    await db.commit()
+    
+    # 4. Seed History (for Admin)
+    msgs = [
+        "You won a lottery! Call 01812345678 to claim.",
+        "Is 01700000000 a safe number?",
+        "Urgent: Send money to 01812345678 immediately."
+    ]
+    
+    for txt in msgs:
+        exists = await db.execute(select(Message).filter(Message.user_id == admin.id, Message.message_text == txt))
+        if not exists.scalars().first():
+            msg = Message(
+                user_id=admin.id,
+                message_text=txt,
+                risk_level="High" if "01812345678" in txt else "Low",
+                confidence=0.9 if "01812345678" in txt else 0.95,
+                red_flags=["suspicious_number"] if "01812345678" in txt else [],
+                created_at=datetime.utcnow() - timedelta(hours=random.randint(1, 48))
+            )
+            db.add(msg)
+            
+    await db.commit()
+
+    return {"status": "success", "message": "Database seeded successfully with test data!"}
 
 if __name__ == "__main__":
     import uvicorn
