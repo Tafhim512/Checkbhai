@@ -161,20 +161,11 @@ class AIEngine:
         return True
 
 # Global AI engine instance
-ai_engine = None
-
-def get_ai_engine():
-    global ai_engine
-    if ai_engine is None:
-        ai_engine = AIEngine()
-    return ai_engine
-
-# Global AI engine instance
-ai_engine = None
+_ai_engine = None
 
 def get_ai_engine():
     """Get or create AI engine instance"""
-    global ai_engine
-    if ai_engine is None:
-        ai_engine = AIEngine()
-    return ai_engine
+    global _ai_engine
+    if _ai_engine is None:
+        _ai_engine = AIEngine()
+    return _ai_engine

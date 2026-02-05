@@ -102,19 +102,25 @@ class AIService:
         self.providers: List[AIProvider] = []
         self.disabled_providers: set = set()
         
-        # Initialize providers based on ENV
+        # Log environment status
         openai_key = os.getenv("OPENAI_API_KEY")
-        if openai_key and not openai_key.startswith("your-"):
-            self.providers.append(OpenAIProvider(openai_key))
-            logger.info("OpenAI provider initialized.")
-            
         groq_key = os.getenv("GROQ_API_KEY")
-        if groq_key and not groq_key.startswith("your-"):
+        
+        logger.info(f"ENV loaded = TRUE")
+        logger.info(f"OPENAI_API_KEY present: {bool(openai_key and not openai_key.startswith('your-'))}")
+        logger.info(f"GROQ_API_KEY present: {bool(groq_key and not groq_key.startswith('your-') and not groq_key.startswith('gsk_your'))}")
+        
+        # Initialize providers based on ENV (Groq first as it's free)
+        if groq_key and not groq_key.startswith("your-") and not groq_key.startswith("gsk_your"):
             self.providers.append(GroqProvider(groq_key))
-            logger.info("Groq provider initialized.")
+            logger.info("✓ Groq provider initialized (primary)")
+            
+        if openai_key and not openai_key.startswith("your-") and not openai_key.startswith("sk-proj-your"):
+            self.providers.append(OpenAIProvider(openai_key))
+            logger.info("✓ OpenAI provider initialized (fallback)")
             
         if not self.providers:
-            logger.warning("No AI providers initialized. Falling back to rules engine only.")
+            logger.warning("⚠ No AI providers initialized. Falling back to rules engine only.")
 
     async def analyze_message(self, text: str) -> Dict:
         """

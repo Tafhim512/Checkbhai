@@ -13,6 +13,7 @@ const apiClient = axios.create({
     headers: {
         'Content-Type': 'application/json',
     },
+    timeout: 30000, // 30 second timeout for Render cold starts
 });
 
 // Add auth token to requests if available
@@ -28,6 +29,23 @@ apiClient.interceptors.request.use((config) => {
 
 // API Methods
 export const api = {
+    // Health check - call /health to verify backend is alive
+    healthCheck: async (): Promise<{ status: string; service: string } | null> => {
+        try {
+            const response = await apiClient.get('/health', { timeout: 10000 });
+            return response.data;
+        } catch (error) {
+            console.error('Health check failed:', error);
+            return null;
+        }
+    },
+
+    // Check if backend is reachable
+    isBackendReachable: async (): Promise<boolean> => {
+        const health = await api.healthCheck();
+        return health !== null && health.status === 'ok';
+    },
+
     // Auth
     register: async (email: string, password: string) => {
         const response = await apiClient.post('/auth/register', { email, password });
@@ -71,26 +89,25 @@ export const api = {
         return response.data;
     },
 
-    // Check message (Serverless via OpenAI with fallback to backend)
+    // Check message - calls backend directly (no serverless dependency)
     checkMessage: async (message: string) => {
         try {
-            const response = await axios.post('/api/scamCheck', { message });
-            return response.data;
-        } catch (error: any) {
-            console.warn('OpenAI Serverless failed, falling back to backend:', error.message);
-            console.log('DEBUG: Attempting fallback to:', API_BASE_URL + '/check/message');
-            // Fallback to local model on Render backend
             const response = await apiClient.post('/check/message', { message });
             const data = response.data;
 
             // Map backend fields to frontend-expected format
             return {
                 risk_score: (data.confidence * 100).toFixed(0),
+                risk_level: data.risk_level,
                 prediction: data.ai_prediction,
                 explanation_en: data.explanation,
-                explanation_bn: data.explanation_bn || "প্রসেসিং সম্পন্ন হয়েছে।",
-                red_flags: data.red_flags || []
+                explanation_bn: data.explanation_bn || "প্রসেসিং সম্পন্ন হয়েছে।",
+                red_flags: data.red_flags || [],
+                message_id: data.message_id
             };
+        } catch (error: any) {
+            console.error('Message check failed:', error.message);
+            throw new Error('Backend unreachable. Please try again later.');
         }
     },
 

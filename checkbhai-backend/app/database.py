@@ -49,6 +49,7 @@ engine = create_async_engine(
     echo=False, 
     future=True,
     pool_pre_ping=True,
+    pool_recycle=1800,
     connect_args={
         "ssl": ctx,  # Use our custom context to bypass verification errors
         "command_timeout": 60,

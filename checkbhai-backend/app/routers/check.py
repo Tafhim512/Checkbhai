@@ -70,7 +70,7 @@ async def check_message(
         confidence=combined_score / 100.0 if combined_score <= 100 else 1.0,
         red_flags=all_red_flags,
         explanation=explanation,
-        ai_prediction=ai_analysis["prediction"],
+        ai_prediction="Scam" if is_scam_ai else "Legit",
         rules_score=rules_score
     )
     
