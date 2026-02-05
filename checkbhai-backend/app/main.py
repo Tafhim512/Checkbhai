@@ -261,6 +261,65 @@ async def seed_db(db = Depends(get_db)):
 
     return {"status": "success", "message": "Database seeded successfully with test data!"}
 
+@app.get("/debug-ai")
+async def debug_ai():
+    """Diagnose AI Service Connectivity"""
+    import os
+    import httpx
+    
+    api_key = os.getenv("GROK_API_KEY")
+    api_url = os.getenv("GROK_API_URL", "https://api.grok.openai.com/v1")
+    
+    status = {
+        "env_check": {
+            "GROK_API_KEY_PRESENT": bool(api_key),
+            "GROK_API_KEY_LENGTH": len(api_key) if api_key else 0,
+            "GROK_API_URL": api_url
+        },
+        "connectivity_check": "Pending"
+    }
+    
+    if not api_key:
+        status["connectivity_check"] = "Failed: No API Key found in environment variables."
+        return status
+        
+    try:
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "messages": [{"role": "user", "content": "Hello"}], # Correct format for OpenAI-compatible query
+             "model": "grok-beta", # Try specifying model or generic
+             "max_tokens": 5
+        }
+        # Note: Grok official API might use different payload structure depending on exact endpoint
+        # Using the one from ai_service.py which was updated to {"message": ...} for the specific user request?
+        # Re-checking ai_service.py: It uses json={"message": prompt}.
+        # Let's match ai_service.py exactly to test THAT path.
+        
+        payload_test = {"message": "Test connection"}
+        
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                api_url,
+                json=payload_test,
+                headers=headers
+            )
+            
+            status["http_status"] = response.status_code
+            status["response_text"] = response.text
+            
+            if response.status_code == 200:
+                status["connectivity_check"] = "SUCCESS: Connected to Grok API."
+            else:
+                status["connectivity_check"] = f"FAILED: API returned {response.status_code}"
+                
+    except Exception as e:
+        status["connectivity_check"] = f"ERROR: {str(e)}"
+        
+    return status
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8000))
