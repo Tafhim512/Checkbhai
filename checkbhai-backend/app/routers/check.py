@@ -62,32 +62,39 @@ async def check_message(
         rules_engine.generate_explanation_bn(message_text, risk_level, all_red_flags)
     )
     
-    # Save to database
-    message_record = Message(
-        user_id=current_user.id if current_user else None,
-        message_text=message_text,
-        risk_level=risk_level,
-        confidence=combined_score / 100.0 if combined_score <= 100 else 1.0,
-        red_flags=all_red_flags,
-        explanation=explanation,
-        ai_prediction="Scam" if is_scam_ai else "Legit",
-        rules_score=rules_score
-    )
-    
-    db.add(message_record)
-    await db.commit()
-    await db.refresh(message_record)
+    # Try to save to database (non-blocking - don't fail if DB errors)
+    message_id = None
+    try:
+        message_record = Message(
+            user_id=current_user.id if current_user else None,
+            message_text=message_text,
+            risk_level=risk_level,
+            confidence=combined_score / 100.0 if combined_score <= 100 else 1.0,
+            red_flags=all_red_flags,
+            explanation=explanation,
+            ai_prediction="Scam" if is_scam_ai else "Legit",
+            rules_score=rules_score
+        )
+        
+        db.add(message_record)
+        await db.commit()
+        await db.refresh(message_record)
+        message_id = str(message_record.id)
+    except Exception as e:
+        # Log error but don't fail the request
+        print(f"Database write failed (non-critical): {e}")
+        await db.rollback()
     
     return ScamCheckResult(
         risk_level=risk_level,
-        confidence=message_record.confidence,
+        confidence=combined_score / 100.0 if combined_score <= 100 else 1.0,
         red_flags=all_red_flags,
         explanation=explanation,
         explanation_bn=explanation_bn,
         ai_prediction="Scam" if is_scam_ai else "Legit",
         ai_confidence=scam_prob,
         rules_score=rules_score,
-        message_id=str(message_record.id)
+        message_id=message_id
     )
 
 @router.get("/health")
