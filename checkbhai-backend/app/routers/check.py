@@ -41,7 +41,14 @@ async def check_message(
     is_scam_ai = ai_result.get("is_scam", False)
     
     # Calculate combined score
-    combined_score = (scam_prob * 70) + (rules_score * 0.3)
+    # If AI prediction is unavailable or fails (0.0), rely more on Rules Engine
+    if scam_prob == 0.0 and rules_score > 0:
+        # Fallback mode: 100% Rules Engine
+        combined_score = float(rules_score)
+        print(f"DEBUG: AI unavailable/neutral. Using Rules Score: {combined_score}")
+    else:
+        # Standard mode: 70% AI, 30% Rules
+        combined_score = (scam_prob * 70) + (rules_score * 0.3)
     
     # Determine final risk level
     if combined_score >= 60 or is_scam_ai:
