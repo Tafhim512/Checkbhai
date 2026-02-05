@@ -16,12 +16,30 @@ const apiClient = axios.create({
     timeout: 30000, // 30 second timeout for Render cold starts
 });
 
-// Add auth token to requests if available
+// Helper to get/set fingerprint
+const getFingerprint = () => {
+    if (typeof window === 'undefined') return '';
+    let fp = localStorage.getItem('fingerprint');
+    if (!fp) {
+        fp = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+        localStorage.setItem('fingerprint', fp);
+    }
+    return fp;
+};
+
+// Add auth token and fingerprint to requests
 apiClient.interceptors.request.use((config) => {
     if (typeof window !== 'undefined') {
+        // Auth Token
         const token = localStorage.getItem('token');
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
+        }
+
+        // Anonymous Fingerprint (Critical for History)
+        const fp = getFingerprint();
+        if (fp) {
+            config.headers['x-fingerprint'] = fp;
         }
     }
     return config;

@@ -258,10 +258,10 @@ function ReportForm() {
                                 Screenshots help verify your report. You can skip this step now.
                             </p>
 
-                            <div className="border-2 border-dashed border-white/10 rounded-3xl p-12 text-center hover:bg-white/5 transition-colors cursor-pointer">
+                            <div className="border-2 border-dashed border-white/10 rounded-3xl p-12 text-center opacity-50 cursor-not-allowed">
                                 <div className="text-4xl mb-4">📸</div>
-                                <p className="text-xs font-bold text-gray-500">CLICK TO UPLOAD SCREENSHOTS</p>
-                                <p className="text-[10px] text-gray-600 mt-2">Maximum 5 images. JPG/PNG supported.</p>
+                                <p className="text-xs font-bold text-gray-500">EVIDENCE UPLOAD PAUSED</p>
+                                <p className="text-[10px] text-gray-600 mt-2">We are upgrading our storage servers. Please submit text-only reports for now.</p>
                             </div>
 
                             <div className="p-4 bg-red-600/10 border border-red-600/30 rounded-xl">
