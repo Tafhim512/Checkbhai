@@ -21,11 +21,11 @@ if DATABASE_URL:
     elif DATABASE_URL.startswith("postgresql://"):
         DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
     
-    # 2. Strip ALL ssl/sslmode parameters from the URL string
-    # asyncpg is very picky and prefers these in connect_args
+    # 2. Strip ALL ssl/sslmode parameters and clean up separators
     import re
     DATABASE_URL = re.sub(r'[?&]sslmode=[^&]*', '', DATABASE_URL)
     DATABASE_URL = re.sub(r'[?&]ssl=[^&]*', '', DATABASE_URL)
+    DATABASE_URL = DATABASE_URL.rstrip('?&')
     
     # 3. Log connection attempt (redacted)
     try:
