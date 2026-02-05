@@ -35,17 +35,20 @@ class UserResponse(BaseModel):
 
 # Entity schemas
 class EntityCheck(BaseModel):
-    type: str = Field(..., pattern="^(phone|fb_page|fb_profile|website|bkash|nagad|rocket)$")
+    type: str = Field(..., pattern="^(phone|fb_page|fb_profile|whatsapp|shop|agent|bkash|nagad|rocket)$")
     identifier: str = Field(..., min_length=3)
 
 class EntityResponse(BaseModel):
     id: uuid.UUID
     type: str
     identifier: str
-    risk_score: int
-    trust_level: str
-    scam_probability: float
+    # Community-powered trust fields
+    risk_status: str  # Insufficient Data, Low Risk, Medium Risk, High Risk
+    confidence_level: str  # Low, Medium, High
     total_reports: int
+    scam_reports: int
+    verified_reports: int
+    last_reported_date: Optional[datetime] = None
     extra_metadata: Optional[dict] = None
     last_checked: datetime
     
@@ -84,7 +87,8 @@ class EvidenceCreate(BaseModel):
 
 class ReportCreate(BaseModel):
     entity_id: uuid.UUID
-    scam_type: str
+    platform: str = Field("other", pattern="^(facebook|whatsapp|shop|agent|other)$")
+    scam_type: str = Field(..., pattern="^(no_delivery|fake_product|advance_taken|blocked_after_payment|impersonation|other)$")
     amount_lost: float = 0.0
     currency: str = "BDT"
     description: str = Field(..., min_length=20)
@@ -92,8 +96,9 @@ class ReportCreate(BaseModel):
 
 class ReportResponse(BaseModel):
     id: uuid.UUID
-    reporter_id: uuid.UUID
+    reporter_id: Optional[uuid.UUID] = None
     entity_id: uuid.UUID
+    platform: str
     scam_type: str
     amount_lost: float
     currency: str

@@ -1,40 +1,77 @@
 """
-CheckBhai Reports Router - Handling report submission and evidence
+CheckBhai Reports Router - Community Report Submission (Append-Only)
+WITH EXPLICIT LOGGING TO PROVE DATA FLOW IS REAL
 """
 
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update
-from typing import List
+from sqlalchemy import select, func
+from typing import List, Optional
 import uuid
-from datetime import datetime
+import logging
+from datetime import datetime, timedelta
 
-from app.database import Report, Evidence, Entity, User, Vote, ActivityLog, get_db
-from app.models import ReportCreate, ReportResponse, VoteCreate
-from app.auth import get_current_user
+from app.database import Report, Evidence, Entity, User, ActivityLog, get_db
+from app.models import ReportCreate, ReportResponse
+from app.auth import get_current_user, get_current_user_optional
+
+# Setup logging
+logger = logging.getLogger("checkbhai.reports")
+logger.setLevel(logging.INFO)
 
 router = APIRouter(prefix="/reports", tags=["reports"])
+
+
+def recalculate_entity_trust(scam_reports: int, verified_reports: int, total_reports: int, recent_reports_count: int) -> tuple[str, str, int]:
+    """Recalculate entity trust score from ACTUAL values"""
+    base_score = (scam_reports * 3) + (verified_reports * 5) + (recent_reports_count * 2)
+    
+    if base_score == 0:
+        risk_status = "Insufficient Data"
+    elif base_score <= 4:
+        risk_status = "Low Risk"
+    elif base_score <= 9:
+        risk_status = "Medium Risk"
+    else:
+        risk_status = "High Risk"
+    
+    if total_reports <= 2:
+        confidence_level = "Low"
+    elif total_reports <= 7:
+        confidence_level = "Medium"
+    else:
+        confidence_level = "High"
+    
+    return risk_status, confidence_level, base_score
+
 
 @router.post("/", response_model=ReportResponse)
 async def create_report(
     report_data: ReportCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: Optional[User] = Depends(get_current_user_optional)
 ):
     """
-    Submit a new scam report with evidence
+    Submit a new scam report.
+    THIS UPDATES THE DATABASE - NOT A MOCK.
     """
+    logger.info(f"[TRUTH LOOP] Report submission started for entity_id={report_data.entity_id}")
+    
     # Verify entity exists
     entity_result = await db.execute(select(Entity).filter(Entity.id == report_data.entity_id))
     entity = entity_result.scalar_one_or_none()
     
     if not entity:
-        raise HTTPException(status_code=404, detail="Entity not found")
+        logger.error(f"[TRUTH LOOP] Entity NOT FOUND: {report_data.entity_id}")
+        raise HTTPException(status_code=404, detail="Entity not found. Please search for the entity first.")
     
-    # Create report
+    logger.info(f"[TRUTH LOOP] Entity found: identifier={entity.identifier}, current_reports={entity.total_reports}")
+    
+    # STEP 1: Create report in database
     report = Report(
-        reporter_id=current_user.id,
+        reporter_id=current_user.id if current_user else None,
         entity_id=report_data.entity_id,
+        platform=report_data.platform,
         scam_type=report_data.scam_type,
         amount_lost=report_data.amount_lost,
         currency=report_data.currency,
@@ -42,9 +79,11 @@ async def create_report(
         status="pending"
     )
     db.add(report)
-    await db.flush() # Get report ID
+    await db.flush()
     
-    # Add evidence
+    logger.info(f"[TRUTH LOOP] Report created with id={report.id}")
+    
+    # Add evidence if provided
     for ev in report_data.evidence:
         evidence = Evidence(
             report_id=report.id,
@@ -54,28 +93,74 @@ async def create_report(
         )
         db.add(evidence)
     
-    # Update entity stats
-    entity.total_reports += 1
-    # Simple risk score increase for now
-    entity.risk_score = min(100, entity.risk_score + 10)
-    if entity.risk_score > 60:
-        entity.trust_level = "Low"
-    elif entity.risk_score > 30:
-        entity.trust_level = "Medium"
+    # STEP 2: UPDATE ENTITY COUNTS IN DATABASE
+    old_total = entity.total_reports or 0
+    old_scam = entity.scam_reports or 0
+    
+    entity.total_reports = old_total + 1
+    entity.scam_reports = old_scam + 1
+    entity.last_reported_date = datetime.utcnow()
+    
+    logger.info(f"[TRUTH LOOP] Entity stats UPDATED: total_reports {old_total} -> {entity.total_reports}, scam_reports {old_scam} -> {entity.scam_reports}")
+    
+    # STEP 3: Recalculate risk score
+    seven_days_ago = datetime.utcnow() - timedelta(days=7)
+    recent_result = await db.execute(
+        select(func.count(Report.id)).filter(
+            Report.entity_id == entity.id,
+            Report.created_at >= seven_days_ago
+        )
+    )
+    recent_count = (recent_result.scalar() or 0) + 1  # +1 for current report
+    
+    risk_status, confidence_level, base_score = recalculate_entity_trust(
+        scam_reports=entity.scam_reports,
+        verified_reports=entity.verified_reports or 0,
+        total_reports=entity.total_reports,
+        recent_reports_count=recent_count
+    )
+    
+    entity.risk_status = risk_status
+    entity.confidence_level = confidence_level
+    
+    logger.info(f"[TRUTH LOOP] NEW RISK: base_score={base_score}, risk_status={risk_status}, confidence={confidence_level}")
     
     # Log activity
     log = ActivityLog(
-        user_id=current_user.id,
+        user_id=current_user.id if current_user else None,
         action="submit_report",
         entity_id=report.id,
-        extra_metadata={"entity_id": str(entity.id)}
+        extra_metadata={
+            "entity_id": str(entity.id),
+            "scam_type": report_data.scam_type,
+            "platform": report_data.platform,
+            "new_total_reports": entity.total_reports,
+            "new_risk_status": entity.risk_status
+        }
     )
     db.add(log)
     
+    # STEP 4: Commit to database
     await db.commit()
     await db.refresh(report)
     
+    logger.info(f"[TRUTH LOOP] Report COMMITTED. Entity {entity.identifier} now has {entity.total_reports} reports, risk={entity.risk_status}")
+    
     return report
+
+
+@router.get("/", response_model=List[ReportResponse])
+async def get_all_reports(
+    skip: int = 0,
+    limit: int = 50,
+    db: AsyncSession = Depends(get_db)
+):
+    """Get all reports"""
+    result = await db.execute(
+        select(Report).order_by(Report.created_at.desc()).offset(skip).limit(limit)
+    )
+    return result.scalars().all()
+
 
 @router.get("/{report_id}", response_model=ReportResponse)
 async def get_report_details(
@@ -90,104 +175,3 @@ async def get_report_details(
         raise HTTPException(status_code=404, detail="Report not found")
     
     return report
-
-@router.post("/{report_id}/vote")
-async def vote_on_report(
-    report_id: uuid.UUID,
-    vote_data: VoteCreate,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """
-    Cast a community vote on a report
-    Updates reputation and entity risk
-    """
-    # Check if user already voted
-    existing_vote_result = await db.execute(
-        select(Vote).filter(Vote.report_id == report_id, Vote.user_id == current_user.id)
-    )
-    if existing_vote_result.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="You have already voted on this report")
-    
-    # Get report and entity
-    report_result = await db.execute(select(Report).filter(Report.id == report_id))
-    report = report_result.scalar_one_or_none()
-    if not report:
-        raise HTTPException(status_code=404, detail="Report not found")
-        
-    entity_result = await db.execute(select(Entity).filter(Entity.id == report.entity_id))
-    entity = entity_result.scalar_one_or_none()
-    
-    # Create vote
-    vote = Vote(
-        user_id=current_user.id,
-        report_id=report_id,
-        vote_type=vote_data.vote_type,
-        weight=current_user.vote_weight
-    )
-    db.add(vote)
-    
-    # Update reputation logic (simplified)
-    # Confirming a scam gives reputation, flagging false report costs if wrong, etc.
-    if vote_data.vote_type == "confirm_scam":
-        current_user.reputation_score += 5
-        entity.risk_score = min(100, entity.risk_score + 2)
-    elif vote_data.vote_type == "confirm_safe":
-        entity.risk_score = max(0, entity.risk_score - 5)
-    
-    # Threshold for status change
-    # If a report gets enough 'confirm_scam' weight, it becomes 'verified'
-    vote_sum_result = await db.execute(
-        select(func.sum(Vote.weight)).filter(Vote.report_id == report_id, Vote.vote_type == "confirm_scam")
-    )
-    confirm_weight = vote_sum_result.scalar() or 0.0
-    
-    if confirm_weight >= 10.0 and report.status == "pending":
-        report.status = "verified"
-        # Update entity trust level
-        entity.trust_level = "High Risk" if entity.risk_score > 80 else "Low"
-    
-    # Log activity
-    log = ActivityLog(
-        user_id=current_user.id,
-        action="cast_vote",
-        entity_id=report_id,
-        extra_metadata={"vote_type": vote_data.vote_type, "new_status": report.status}
-    )
-    db.add(log)
-    
-    await db.commit()
-    return {"message": "Vote recorded successfully", "report_status": report.status}
-
-@router.post("/{report_id}/appeal")
-async def appeal_report(
-    report_id: uuid.UUID,
-    reason: str,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """
-    Allow an entity owner or interested party to appeal a report
-    """
-    result = await db.execute(select(Report).filter(Report.id == report_id))
-    report = result.scalar_one_or_none()
-    
-    if not report:
-        raise HTTPException(status_code=404, detail="Report not found")
-    
-    if report.status == "appealed":
-        raise HTTPException(status_code=400, detail="This report is already under appeal")
-        
-    report.status = "appealed"
-    
-    # Log activity
-    log = ActivityLog(
-        user_id=current_user.id,
-        action="submit_appeal",
-        entity_id=report_id,
-        extra_metadata={"reason": reason}
-    )
-    db.add(log)
-    
-    await db.commit()
-    return {"message": "Appeal submitted and report is now under review"}

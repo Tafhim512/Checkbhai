@@ -1,148 +1,244 @@
 """
-Admin routes - statistics, message review, AI retraining
+Admin routes - Minimal, Strong Admin Panel
+- View all reports
+- Mark report as Verified
+- Remove spam reports
+NO AI training, NO analytics bloat
 """
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, desc
 from typing import List
+import uuid
+from datetime import datetime, timedelta
 
-from app.database import Message, User, Payment, TrainingData, get_db
-from app.models import AdminStats, RetrainRequest, MessageHistory
+from app.database import Report, User, Entity, ActivityLog, get_db
+from app.models import ReportResponse
 from app.auth import get_current_admin
-from app.ai_engine import get_ai_engine
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
-@router.get("/stats", response_model=AdminStats)
+
+@router.get("/stats")
 async def get_admin_stats(
     current_admin: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get platform statistics"""
+    """Get platform statistics (minimal, essential only)"""
     
     # Total users
     total_users_result = await db.execute(select(func.count(User.id)))
     total_users = total_users_result.scalar() or 0
     
-    # Total message checks
-    total_checks_result = await db.execute(select(func.count(Message.id)))
-    total_checks = total_checks_result.scalar() or 0
+    # Total reports
+    total_reports_result = await db.execute(select(func.count(Report.id)))
+    total_reports = total_reports_result.scalar() or 0
     
-    # Total scams detected (High risk)
-    total_scams_result = await db.execute(
-        select(func.count(Message.id)).filter(Message.risk_level == "High")
+    # Verified reports
+    verified_reports_result = await db.execute(
+        select(func.count(Report.id)).filter(Report.status == "verified")
     )
-    total_scams = total_scams_result.scalar() or 0
+    verified_reports = verified_reports_result.scalar() or 0
     
-    # Total payments
-    total_payments_result = await db.execute(select(func.count(Payment.id)))
-    total_payments = total_payments_result.scalar() or 0
-    
-    # Calculate scam percentage
-    scam_percentage = (total_scams / total_checks * 100) if total_checks > 0 else 0
-    
-    return AdminStats(
-        total_users=total_users,
-        total_checks=total_checks,
-        total_scams_detected=total_scams,
-        total_payments=total_payments,
-        scam_percentage=round(scam_percentage, 2)
+    # Pending reports
+    pending_reports_result = await db.execute(
+        select(func.count(Report.id)).filter(Report.status == "pending")
     )
+    pending_reports = pending_reports_result.scalar() or 0
+    
+    # Total entities tracked
+    total_entities_result = await db.execute(select(func.count(Entity.id)))
+    total_entities = total_entities_result.scalar() or 0
+    
+    # High risk entities
+    high_risk_result = await db.execute(
+        select(func.count(Entity.id)).filter(Entity.risk_status == "High Risk")
+    )
+    high_risk_entities = high_risk_result.scalar() or 0
+    
+    return {
+        "total_users": total_users,
+        "total_reports": total_reports,
+        "verified_reports": verified_reports,
+        "pending_reports": pending_reports,
+        "total_entities": total_entities,
+        "high_risk_entities": high_risk_entities
+    }
 
-@router.get("/messages", response_model=List[MessageHistory])
-async def get_all_messages(
+
+@router.get("/reports", response_model=List[ReportResponse])
+async def get_all_reports(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
-    risk_filter: str = Query(None, pattern="^(Low|Medium|High)$"),
+    status_filter: str = Query(None, pattern="^(pending|verified|rejected|spam)$"),
     current_admin: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get all message checks with filters"""
+    """Get all reports with optional status filter"""
     
-    query = select(Message)
+    query = select(Report)
     
-    if risk_filter:
-        query = query.filter(Message.risk_level == risk_filter)
+    if status_filter:
+        query = query.filter(Report.status == status_filter)
     
-    query = query.order_by(desc(Message.created_at)).offset(skip).limit(limit)
+    query = query.order_by(desc(Report.created_at)).offset(skip).limit(limit)
     
     result = await db.execute(query)
-    messages = result.scalars().all()
-    
-    return messages
+    return result.scalars().all()
 
-@router.post("/retrain")
-async def retrain_model(
-    retrain_data: RetrainRequest,
+
+@router.put("/reports/{report_id}/verify")
+async def verify_report(
+    report_id: uuid.UUID,
     current_admin: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Retrain AI model with new data (human-in-the-loop)
+    Mark a report as verified.
+    Verified reports have higher weight in trust scoring.
     """
+    result = await db.execute(select(Report).filter(Report.id == report_id))
+    report = result.scalar_one_or_none()
     
-    # Save new training data to database
-    for item in retrain_data.training_data:
-        training_record = TrainingData(
-            text=item.text,
-            label=item.label,
-            category=item.category,
-            verified_by_admin=True,
-            admin_id=current_admin.id
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+    
+    if report.status == "verified":
+        raise HTTPException(status_code=400, detail="Report is already verified")
+    
+    # Update report status
+    report.status = "verified"
+    
+    # Update entity's verified_reports count
+    entity_result = await db.execute(select(Entity).filter(Entity.id == report.entity_id))
+    entity = entity_result.scalar_one_or_none()
+    
+    if entity:
+        entity.verified_reports = (entity.verified_reports or 0) + 1
+        
+        # Recalculate trust score
+        scam_reports = entity.scam_reports or 0
+        verified_reports = entity.verified_reports or 0
+        total_reports = entity.total_reports or 0
+        
+        # Get recent reports count
+        seven_days_ago = datetime.utcnow() - timedelta(days=7)
+        recent_result = await db.execute(
+            select(func.count(Report.id)).filter(
+                Report.entity_id == entity.id,
+                Report.created_at >= seven_days_ago
+            )
         )
-        db.add(training_record)
+        recent_count = recent_result.scalar() or 0
+        
+        base_score = (scam_reports * 3) + (verified_reports * 5) + (recent_count * 2)
+        
+        if base_score == 0:
+            entity.risk_status = "Insufficient Data"
+        elif base_score <= 4:
+            entity.risk_status = "Low Risk"
+        elif base_score <= 9:
+            entity.risk_status = "Medium Risk"
+        else:
+            entity.risk_status = "High Risk"
+        
+        if total_reports <= 2:
+            entity.confidence_level = "Low"
+        elif total_reports <= 7:
+            entity.confidence_level = "Medium"
+        else:
+            entity.confidence_level = "High"
+    
+    # Log activity
+    log = ActivityLog(
+        user_id=current_admin.id,
+        action="verify_report",
+        entity_id=report_id,
+        extra_metadata={"entity_id": str(report.entity_id)}
+    )
+    db.add(log)
     
     await db.commit()
     
-    # Prepare data for retraining
-    new_texts = [item.text for item in retrain_data.training_data]
-    new_labels = [1 if item.label == 'Scam' else 0 for item in retrain_data.training_data]
-    
-    # Retrain AI model
-    ai_engine = get_ai_engine()
-    ai_engine.retrain_with_feedback(new_texts, new_labels)
-    
-    return {
-        "status": "success",
-        "message": f"Model retrained with {len(new_texts)} new examples",
-        "total_examples": len(new_texts)
-    }
+    return {"message": "Report verified successfully", "report_id": str(report_id)}
 
-@router.get("/recent-activity")
-async def get_recent_activity(
-    limit: int = Query(10, ge=1, le=50),
+
+@router.delete("/reports/{report_id}")
+async def delete_spam_report(
+    report_id: uuid.UUID,
     current_admin: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get recent platform activity"""
+    """
+    Mark a report as spam (soft delete).
+    This reduces the entity's scam_reports count.
+    """
+    result = await db.execute(select(Report).filter(Report.id == report_id))
+    report = result.scalar_one_or_none()
     
-    # Recent messages
-    messages_result = await db.execute(
-        select(Message).order_by(desc(Message.created_at)).limit(limit)
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+    
+    if report.status == "spam":
+        raise HTTPException(status_code=400, detail="Report is already marked as spam")
+    
+    # Update report status
+    old_status = report.status
+    report.status = "spam"
+    
+    # Update entity stats
+    entity_result = await db.execute(select(Entity).filter(Entity.id == report.entity_id))
+    entity = entity_result.scalar_one_or_none()
+    
+    if entity:
+        entity.total_reports = max(0, (entity.total_reports or 1) - 1)
+        entity.scam_reports = max(0, (entity.scam_reports or 1) - 1)
+        if old_status == "verified":
+            entity.verified_reports = max(0, (entity.verified_reports or 1) - 1)
+        
+        # Recalculate trust score
+        scam_reports = entity.scam_reports or 0
+        verified_reports = entity.verified_reports or 0
+        total_reports = entity.total_reports or 0
+        
+        seven_days_ago = datetime.utcnow() - timedelta(days=7)
+        recent_result = await db.execute(
+            select(func.count(Report.id)).filter(
+                Report.entity_id == entity.id,
+                Report.created_at >= seven_days_ago,
+                Report.status != "spam"
+            )
+        )
+        recent_count = recent_result.scalar() or 0
+        
+        base_score = (scam_reports * 3) + (verified_reports * 5) + (recent_count * 2)
+        
+        if base_score == 0:
+            entity.risk_status = "Insufficient Data"
+        elif base_score <= 4:
+            entity.risk_status = "Low Risk"
+        elif base_score <= 9:
+            entity.risk_status = "Medium Risk"
+        else:
+            entity.risk_status = "High Risk"
+        
+        if total_reports <= 2:
+            entity.confidence_level = "Low"
+        elif total_reports <= 7:
+            entity.confidence_level = "Medium"
+        else:
+            entity.confidence_level = "High"
+    
+    # Log activity
+    log = ActivityLog(
+        user_id=current_admin.id,
+        action="mark_report_spam",
+        entity_id=report_id,
+        extra_metadata={"entity_id": str(report.entity_id)}
     )
-    recent_messages = messages_result.scalars().all()
+    db.add(log)
     
-    # Recent payments
-    payments_result = await db.execute(
-        select(Payment).order_by(desc(Payment.created_at)).limit(limit)
-    )
-    recent_payments = payments_result.scalars().all()
+    await db.commit()
     
-    return {
-        "recent_checks": [
-            {
-                "id": str(msg.id),
-                "risk_level": msg.risk_level,
-                "created_at": msg.created_at.isoformat()
-            } for msg in recent_messages
-        ],
-        "recent_payments": [
-            {
-                "id": str(pay.id),
-                "amount": pay.amount,
-                "method": pay.method,
-                "created_at": pay.created_at.isoformat()
-            } for pay in recent_payments
-        ]
-    }
+    return {"message": "Report marked as spam", "report_id": str(report_id)}

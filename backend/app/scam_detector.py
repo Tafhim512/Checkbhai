@@ -1,8 +1,41 @@
 import re
 import os
-import openai
+import logging
+import json
 
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# Set up logging
+logger = logging.getLogger(__name__)
+
+# Initialize LangChain components with graceful fallback
+openai_api_key = os.getenv("OPENAI_API_KEY")
+langchain_api_key = os.getenv("LANGCHAIN_API_KEY")
+langchain_project = os.getenv("LANGCHAIN_PROJECT", "checkbhai-backend")
+
+# Set environment variables for LangSmith tracing
+os.environ["LANGCHAIN_TRACING_V2"] = "true"
+os.environ["LANGCHAIN_API_KEY"] = langchain_api_key or ""
+os.environ["LANGCHAIN_PROJECT"] = langchain_project
+
+# Try to import and initialize LangChain components
+llm = None
+ai_available = False
+try:
+    from langchain_openai import ChatOpenAI
+    from langchain_core.prompts import ChatPromptTemplate
+    from langchain_core.output_parsers import JsonOutputParser
+
+    llm = ChatOpenAI(
+        model="gpt-3.5-turbo",
+        temperature=0.3,
+        max_tokens=500,
+        api_key=openai_api_key
+    )
+    ai_available = True
+    logger.info("LangChain OpenAI initialized successfully")
+except ImportError as e:
+    logger.warning(f"LangChain imports failed: {e}. Falling back to rule-based analysis only.")
+except Exception as e:
+    logger.warning(f"Failed to initialize LangChain OpenAI: {e}. Falling back to rule-based analysis only.")
 
 class ScamDetector:
     
@@ -91,9 +124,21 @@ class ScamDetector:
         return red_flags
     
     def ai_analysis(self, text):
-        """AI-powered analysis using GPT"""
+        """AI-powered analysis using LangChain with LangSmith tracing"""
+        if not ai_available or llm is None:
+            logger.warning("AI not available - LangChain not initialized or missing API keys")
+            return {
+                "risk_level": "medium",
+                "risk_score": 50,
+                "analysis": "AI analysis unavailable. Rule-based check performed.",
+                "red_flags": []
+            }
+
         try:
-            prompt = f"""You are CheckBhai, a scam detection expert for Bangladesh. Analyze this message for scam indicators:
+            # Create prompt template
+            prompt_template = ChatPromptTemplate.from_messages([
+                ("system", "You are CheckBhai, a scam detection expert for Bangladesh. Analyze this message for scam indicators and respond with valid JSON."),
+                ("user", """Analyze this message for scam indicators:
 
 "{text}"
 
@@ -103,28 +148,25 @@ Provide:
 3. Detailed analysis in Bangla and English (2-3 sentences)
 4. Specific red flags
 
-Format as JSON: {{"risk_level": "...", "risk_score": X, "analysis": "...", "red_flags": [...]}}"""
+Format as JSON: {{"risk_level": "...", "risk_score": X, "analysis": "...", "red_flags": [...]}}""")
+            ])
 
-            response = openai.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {"role": "system", "content": "You are a scam detection expert."},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.3,
-                max_tokens=500
-            )
-            
-            result = response.choices[0].message.content
-            # Parse JSON response
-            import json
-            return json.loads(result)
-        except:
-            # Fallback if AI fails
+            # Create chain with JSON output parser
+            chain = prompt_template | llm | JsonOutputParser()
+
+            # Invoke chain with tracing
+            result = chain.invoke({"text": text})
+
+            logger.info("AI analysis completed successfully")
+            return result
+
+        except Exception as e:
+            logger.error(f"AI analysis failed: {str(e)}")
+            # Graceful fallback
             return {
                 "risk_level": "medium",
                 "risk_score": 50,
-                "analysis": "Unable to complete AI analysis. Rule-based check performed.",
+                "analysis": f"AI analysis failed: {str(e)}. Rule-based check performed.",
                 "red_flags": []
             }
     

@@ -1,5 +1,5 @@
 /**
- * CheckBhai Home Page - Unified Trust & Verification Layer
+ * CheckBhai Home Page - Community-Powered Trust Intelligence Platform
  */
 
 'use client';
@@ -19,7 +19,7 @@ export default function Home() {
         {/* Badge */}
         <div className="mb-8 px-4 py-1.5 bg-blue-500/10 border border-blue-500/20 rounded-full flex items-center gap-2 animate-fade-in">
           <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.8)]"></span>
-          <span className="text-[10px] font-bold uppercase tracking-widest text-blue-400">National Trust Infrastructure</span>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-blue-400">Community-Powered Trust Platform</span>
         </div>
 
         {/* Hero Title */}
@@ -29,14 +29,14 @@ export default function Home() {
             <span className="text-blue-600 block md:inline md:ml-4 italic">BHAI / ভাই</span>
           </h1>
           <p className="text-xl md:text-2xl text-gray-400 font-medium leading-relaxed">
-            Bangladesh’s most advanced AI platform to verify sellers, phone numbers, and payment IDs before you send a single Taka.
+            The place people check before sending money. Community-powered trust intelligence for Bangladesh.
           </p>
         </div>
 
         {/* Unified Search Engine */}
         <div className="w-full mb-24 animate-slide-up">
           <div className="text-center mb-8">
-            <h2 className="text-sm font-bold uppercase tracking-[0.3em] text-gray-500">Universal Verification Engine</h2>
+            <h2 className="text-sm font-bold uppercase tracking-[0.3em] text-gray-500">Search Before You Pay</h2>
           </div>
           <EntitySearch />
         </div>
@@ -44,33 +44,36 @@ export default function Home() {
         {/* Features / Value Props */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full mt-12 pb-12 border-b border-white/5">
           <ValueCard
-            icon="🛡️"
-            title="Evidence Based"
-            desc="No opinions, just cold hard evidence. Reports must include chat proof and payment screenshots."
+            icon="👥"
+            title="Community Reports"
+            desc="Real reports from real users. No fake certainty - just honest data from the community."
           />
           <ValueCard
-            icon="🧠"
-            title="LLM Reasoning"
-            desc="Our AI doesn't just score; it explains the scam logic in Bangla and English for your safety."
+            icon="📊"
+            title="Trust Signals"
+            desc="See risk level, report count, and verification status. Make informed decisions."
           />
           <ValueCard
-            icon="🕸️"
-            title="Network Detection"
-            desc="We auto-link scammers using shared bKash numbers, phone IDs, and writing styles."
+            icon="🔒"
+            title="Append-Only"
+            desc="Every report is permanent. Scammers cannot erase their history."
           />
         </div>
 
         {/* Bottom CTA / Stats */}
         <div className="mt-24 text-center max-w-2xl">
           <p className="text-gray-400 text-sm font-medium mb-12">
-            TRUSTED BY <span className="text-white font-bold">50,000+</span> USERS ACROSS BANGLADESH
+            HELPING BANGLADESH MAKE SAFER TRANSACTIONS
           </p>
           <div className="flex flex-wrap justify-center gap-4">
-            <button className="bg-white text-black font-black py-4 px-10 rounded-2xl hover:scale-105 transition-all">
-              Join Community
+            <button
+              onClick={() => window.location.href = '/report'}
+              className="bg-red-600 text-white font-black py-4 px-10 rounded-2xl hover:bg-red-700 transition-all"
+            >
+              🚩 Report a Scam
             </button>
             <button className="bg-transparent text-white border border-white/20 font-black py-4 px-10 rounded-2xl hover:bg-white/5 transition-all">
-              Business API
+              Premium Coming Soon
             </button>
           </div>
         </div>
@@ -78,7 +81,7 @@ export default function Home() {
 
       {/* Footer Branding */}
       <footer className="relative z-10 py-12 text-center text-gray-600 font-bold text-xs uppercase tracking-widest">
-        &copy; 2026 CHECKBHAI &bull; SAFEGUARDING DIGITAL BANGLADESH
+        &copy; 2026 CHECKBHAI &bull; COMMUNITY-POWERED TRUST PLATFORM
       </footer>
     </div>
   );

@@ -1,6 +1,6 @@
 /**
  * CheckBhai API Client
- * Handles all backend API calls
+ * Handles all backend API calls for Community-Powered Trust Platform
  */
 
 import axios from 'axios';
@@ -13,6 +13,7 @@ const apiClient = axios.create({
     headers: {
         'Content-Type': 'application/json',
     },
+    timeout: 30000, // 30 second timeout for Render cold starts
 });
 
 // Add auth token to requests if available
@@ -28,6 +29,22 @@ apiClient.interceptors.request.use((config) => {
 
 // API Methods
 export const api = {
+    // Health check
+    healthCheck: async (): Promise<{ status: string; service: string } | null> => {
+        try {
+            const response = await apiClient.get('/health', { timeout: 10000 });
+            return response.data;
+        } catch (error) {
+            console.error('Health check failed:', error);
+            return null;
+        }
+    },
+
+    isBackendReachable: async (): Promise<boolean> => {
+        const health = await api.healthCheck();
+        return health !== null && health.status === 'ok';
+    },
+
     // Auth
     register: async (email: string, password: string) => {
         const response = await apiClient.post('/auth/register', { email, password });
@@ -63,7 +80,7 @@ export const api = {
         return typeof window !== 'undefined' && localStorage.getItem('is_admin') === 'true';
     },
 
-    // Check entity (Phone, bKash, Website, etc.)
+    // Check entity - returns community trust data
     checkEntity: async (type: string, identifier: string) => {
         const response = await apiClient.get('/entities/check', {
             params: { type, identifier }
@@ -71,26 +88,40 @@ export const api = {
         return response.data;
     },
 
-    // Check message (Serverless via OpenAI with fallback to backend)
+    // Check message - for suspicious message analysis
     checkMessage: async (message: string) => {
         try {
-            const response = await axios.post('/api/scamCheck', { message });
+            const response = await apiClient.post('/check/message', { message });
             return response.data;
         } catch (error: any) {
-            console.warn('OpenAI Serverless failed, falling back to backend:', error.message);
-            // Fallback to local model on Render backend
-            const response = await apiClient.post('/check/message', { message });
-            const data = response.data;
-
-            // Map backend fields to frontend-expected format
-            return {
-                risk_score: (data.confidence * 100).toFixed(0),
-                prediction: data.ai_prediction,
-                explanation_en: data.explanation,
-                explanation_bn: data.explanation_bn || "প্রসেসিং সম্পন্ন হয়েছে।",
-                red_flags: data.red_flags || []
-            };
+            console.error('Message check failed:', error.message);
+            throw new Error('Backend unreachable. Please try again later.');
         }
+    },
+
+    // Submit a scam report
+    submitReport: async (reportData: {
+        entity_id: string;
+        platform: string;
+        scam_type: string;
+        amount_lost: number;
+        description: string;
+        evidence: Array<{ file_url: string; file_type: string }>;
+    }) => {
+        const response = await apiClient.post('/reports/', reportData);
+        return response.data;
+    },
+
+    // Get reports for an entity
+    getEntityReports: async (entityId: string) => {
+        const response = await apiClient.get(`/entities/${entityId}/reports`);
+        return response.data;
+    },
+
+    // Get entity details by ID
+    getEntityDetails: async (entityId: string) => {
+        const response = await apiClient.get(`/entities/${entityId}`);
+        return response.data;
     },
 
     // History
@@ -106,7 +137,7 @@ export const api = {
         return response.data;
     },
 
-    // Payment
+    // Payment (placeholder for future)
     createPayment: async (paymentData: {
         amount: number;
         method: string;
@@ -129,22 +160,32 @@ export const api = {
         return response.data;
     },
 
-    getAllMessages: async (skip = 0, limit = 50, riskFilter?: string) => {
+    getAdminReports: async (skip = 0, limit = 50, statusFilter?: string) => {
         const params: any = { skip, limit };
-        if (riskFilter) params.risk_filter = riskFilter;
-        const response = await apiClient.get('/admin/messages', { params });
+        if (statusFilter) params.status_filter = statusFilter;
+        const response = await apiClient.get('/admin/reports', { params });
         return response.data;
     },
 
-    retrainModel: async (trainingData: Array<{ text: string; label: string; category?: string }>) => {
-        const response = await apiClient.post('/admin/retrain', { training_data: trainingData });
+    verifyReport: async (reportId: string) => {
+        const response = await apiClient.put(`/admin/reports/${reportId}/verify`);
         return response.data;
     },
 
-    getRecentActivity: async (limit = 10) => {
-        const response = await apiClient.get('/admin/recent-activity', { params: { limit } });
+    deleteReport: async (reportId: string) => {
+        const response = await apiClient.delete(`/admin/reports/${reportId}`);
         return response.data;
     },
+
+    // Track premium CTA clicks (for validation)
+    trackPremiumClick: async () => {
+        try {
+            // For now, just log - can be enhanced later
+            console.log('Premium CTA clicked');
+        } catch (error) {
+            // Silent fail
+        }
+    }
 };
 
 export default api;

@@ -36,12 +36,16 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"Admin user creation failed: {e}")
     
-    # Initialize AI engine (train model if needed)
+    # Initialize AI service (Check providers)
     try:
-        ai_engine = get_ai_engine()
-        print(f"AI Engine ready (trained: {ai_engine.is_trained})")
+        from app.services.ai_service import get_ai_service
+        print(f"DEBUG: GROK_API_KEY loaded: {bool(os.getenv('GROK_API_KEY'))}")
+        
+        ai_service = get_ai_service()
+        provider_name = ai_service.provider.name if ai_service.provider else "None (Rules Only)"
+        print(f"AI Service ready. Active provider: {provider_name}")
     except Exception as e:
-        print(f"AI Engine initialization failed: {e}")
+        print(f"AI Service initialization failed: {e}")
     
     print("CheckBhai Backend ready!")
     
@@ -61,8 +65,8 @@ app = FastAPI(
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify exact frontend URL
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False, # Must be False if using ["*"]
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -103,7 +107,7 @@ async def root():
 @app.get("/health")
 async def health():
     """Health check endpoint"""
-    return {"status": "healthy", "service": "CheckBhai API"}
+    return {"status": "ok", "service": "CheckBhai API"}
 
 if __name__ == "__main__":
     import uvicorn

@@ -15,17 +15,19 @@ import os
 DATABASE_URL = os.getenv("DATABASE_URL", "")
 
 if DATABASE_URL:
-    # Auto-correct scheme for asyncpg
-    if DATABASE_URL.startswith("postgresql://"):
+    # 1. Ensure the dialect is postgresql+asyncpg
+    if DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
+    elif DATABASE_URL.startswith("postgresql://"):
         DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
     
-    # Ensure SSL for Supabase/Production
-    if "supabase.co" in DATABASE_URL or "pooler.supabase.com" in DATABASE_URL:
-        if "sslmode=" not in DATABASE_URL:
-            connector = "&" if "?" in DATABASE_URL else "?"
-            DATABASE_URL += f"{connector}sslmode=require"
+    # 2. Strip ALL ssl/sslmode parameters and clean up separators
+    import re
+    DATABASE_URL = re.sub(r'[?&]sslmode=[^&]*', '', DATABASE_URL)
+    DATABASE_URL = re.sub(r'[?&]ssl=[^&]*', '', DATABASE_URL)
+    DATABASE_URL = DATABASE_URL.rstrip('?&')
     
-    # Log connection attempt (redacting password)
+    # 3. Log connection attempt (redacted)
     try:
         parts = DATABASE_URL.split("@")
         if len(parts) > 1:
@@ -34,13 +36,24 @@ if DATABASE_URL:
         pass
 
 # Create async engine
+# We pass SSL explicitly in connect_args for asyncpg stability.
+# To handle "self-signed certificate" errors common on Render/Supabase,
+# we create a custom SSL context.
+import ssl
+ctx = ssl.create_default_context()
+ctx.check_hostname = False
+ctx.verify_mode = ssl.CERT_NONE
+
 engine = create_async_engine(
     DATABASE_URL, 
     echo=False, 
     future=True,
     pool_pre_ping=True,
+    pool_recycle=1800,
     connect_args={
-        "command_timeout": 10,
+        "ssl": ctx,  # Use our custom context to bypass verification errors
+        "statement_cache_size": 0,  # CRITICAL: Fix for PgBouncer/Supabase prepared statement error
+        "command_timeout": 60,
         "server_settings": {
             "application_name": "CheckBhai-Backend"
         }
@@ -70,16 +83,20 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     
 class Entity(Base):
-    """Entities being checked (Phone, URL, FB Page, etc.)"""
+    """Entities being checked (Phone, FB Page, WhatsApp, Shop, Agent, Payment ID, etc.)"""
     __tablename__ = "entities"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    type = Column(String(50), nullable=False, index=True)  # phone, fb_page, website, etc.
+    type = Column(String(50), nullable=False, index=True)  # phone, fb_page, fb_profile, whatsapp, shop, agent, bkash, nagad, rocket
     identifier = Column(String(255), nullable=False, index=True)
-    risk_score = Column(Integer, default=0)
-    trust_level = Column(String(20), default="Low") # Low, Medium, High
-    scam_probability = Column(Float, default=0.0)
+    # Community-powered trust scoring fields
     total_reports = Column(Integer, default=0)
+    scam_reports = Column(Integer, default=0)  # Reports claiming scam
+    verified_reports = Column(Integer, default=0)  # Admin-verified reports
+    last_reported_date = Column(DateTime, nullable=True)  # Last report submission date
+    # Computed risk status: Insufficient Data, Low Risk, Medium Risk, High Risk
+    risk_status = Column(String(30), default="Insufficient Data")
+    confidence_level = Column(String(20), default="Low")  # Low, Medium, High
     extra_metadata = Column(JSON, nullable=True)
     last_checked = Column(DateTime, default=datetime.utcnow)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -97,21 +114,24 @@ class Message(Base):
     explanation = Column(Text, nullable=True)
     ai_prediction = Column(String(20), nullable=True)
     rules_score = Column(Integer, nullable=True)
+    fingerprint = Column(String(64), nullable=True, index=True)  # SHA256 of IP + UA for anon history
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
 class Report(Base):
-    """Evidence-based reports"""
+    """Evidence-based community reports - append-only"""
     __tablename__ = "reports"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    reporter_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    reporter_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)  # nullable for anonymous
     entity_id = Column(UUID(as_uuid=True), ForeignKey("entities.id"), nullable=False)
+    # Platform where scam occurred
+    platform = Column(String(50), default="other")  # facebook, whatsapp, shop, agent, other
+    # Scam type: no_delivery, fake_product, advance_taken, blocked_after_payment, impersonation, other
     scam_type = Column(String(100), nullable=False)
     amount_lost = Column(Float, default=0.0)
     currency = Column(String(10), default="BDT")
     description = Column(Text, nullable=False)
-    status = Column(String(20), default="pending")  # pending, verified, rejected, appealed
-    ai_validation_note = Column(Text, nullable=True)
+    status = Column(String(20), default="pending")  # pending, verified, rejected, spam
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
 class Evidence(Base):

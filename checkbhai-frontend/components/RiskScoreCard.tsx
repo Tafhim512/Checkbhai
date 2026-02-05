@@ -9,33 +9,77 @@ function cn(...inputs: ClassValue[]) {
 }
 
 interface RiskScoreCardProps {
-    score: number;
-    trustLevel: string;
+    riskStatus: string;  // Insufficient Data, Low Risk, Medium Risk, High Risk
+    confidenceLevel: string;  // Low, Medium, High
     type: string;
     identifier: string;
-    scamProbability?: number;
+    totalReports: number;
+    scamReports: number;
+    verifiedReports: number;
+    lastReportedDate?: string | null;
 }
 
 const RiskScoreCard: React.FC<RiskScoreCardProps> = ({
-    score,
-    trustLevel,
+    riskStatus,
+    confidenceLevel,
     type,
     identifier,
-    scamProbability
+    totalReports,
+    scamReports,
+    verifiedReports,
+    lastReportedDate
 }) => {
-    const getRiskColor = (s: number) => {
-        if (s >= 70) return "text-red-500 border-red-500 bg-red-50";
-        if (s >= 30) return "text-yellow-600 border-yellow-500 bg-yellow-50";
-        return "text-green-500 border-green-500 bg-green-50";
+    const getRiskColor = (status: string) => {
+        switch (status) {
+            case "High Risk":
+                return "text-red-500 border-red-500 bg-red-50";
+            case "Medium Risk":
+                return "text-yellow-600 border-yellow-500 bg-yellow-50";
+            case "Low Risk":
+                return "text-blue-500 border-blue-500 bg-blue-50";
+            default:
+                return "text-gray-500 border-gray-400 bg-gray-50";
+        }
     };
 
-    const getRiskLabel = (s: number) => {
-        if (s >= 70) return "High Risk / উচ্চ ঝুঁকি";
-        if (s >= 30) return "Suspicious / সন্দেহজনক";
-        return "Likely Safe / নিরাপদ";
+    const getRiskLabel = (status: string) => {
+        switch (status) {
+            case "High Risk":
+                return "High Risk / উচ্চ ঝুঁকি";
+            case "Medium Risk":
+                return "Medium Risk / মাঝারি ঝুঁকি";
+            case "Low Risk":
+                return "Low Risk / কম ঝুঁকি";
+            default:
+                return "Insufficient Data / অপর্যাপ্ত তথ্য";
+        }
     };
 
-    const colors = getRiskColor(score);
+    const getDotColor = (status: string) => {
+        switch (status) {
+            case "High Risk":
+                return "bg-red-500";
+            case "Medium Risk":
+                return "bg-yellow-500";
+            case "Low Risk":
+                return "bg-blue-500";
+            default:
+                return "bg-gray-400";
+        }
+    };
+
+    const formatDate = (dateString: string | null | undefined) => {
+        if (!dateString) return "Never";
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+        if (diffDays === 0) return "Today";
+        if (diffDays === 1) return "Yesterday";
+        if (diffDays < 7) return `${diffDays} days ago`;
+        return date.toLocaleDateString();
+    };
+
+    const colors = getRiskColor(riskStatus);
 
     return (
         <div className={cn("p-6 rounded-2xl border-2 transition-all duration-300 shadow-lg", colors)}>
@@ -45,33 +89,39 @@ const RiskScoreCard: React.FC<RiskScoreCardProps> = ({
                     <h2 className="text-2xl font-bold mt-1 truncate max-w-[200px]">{identifier}</h2>
                 </div>
                 <div className="flex flex-col items-end">
-                    <div className="text-4xl font-extrabold">{score}%</div>
-                    <div className="text-xs font-bold opacity-80 uppercase">Risk Score</div>
+                    <div className="text-sm font-bold opacity-80 uppercase">Confidence</div>
+                    <div className="text-lg font-bold">{confidenceLevel}</div>
                 </div>
             </div>
 
             <div className="mt-6 flex flex-col gap-3">
                 <div className="flex items-center gap-2">
-                    <div className={cn("w-3 h-3 rounded-full animate-pulse", score >= 70 ? "bg-red-500" : score >= 30 ? "bg-yellow-500" : "bg-green-500")}></div>
-                    <span className="font-bold text-lg">{getRiskLabel(score)}</span>
+                    <div className={cn("w-3 h-3 rounded-full animate-pulse", getDotColor(riskStatus))}></div>
+                    <span className="font-bold text-lg">{getRiskLabel(riskStatus)}</span>
                 </div>
 
-                {scamProbability !== undefined && (
-                    <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
-                        <div
-                            className={cn("h-2.5 rounded-full transition-all duration-1000", score >= 70 ? "bg-red-600" : score >= 30 ? "bg-yellow-500" : "bg-green-500")}
-                            style={{ width: `${score}%` }}
-                        ></div>
+                {/* Community Stats */}
+                <div className="grid grid-cols-3 gap-2 mt-4">
+                    <div className="text-center p-2 bg-white/50 rounded-lg">
+                        <div className="text-xl font-bold">{totalReports}</div>
+                        <div className="text-[10px] opacity-70 uppercase">Reports</div>
                     </div>
-                )}
+                    <div className="text-center p-2 bg-white/50 rounded-lg">
+                        <div className="text-xl font-bold">{verifiedReports}</div>
+                        <div className="text-[10px] opacity-70 uppercase">Verified</div>
+                    </div>
+                    <div className="text-center p-2 bg-white/50 rounded-lg">
+                        <div className="text-sm font-bold">{formatDate(lastReportedDate)}</div>
+                        <div className="text-[10px] opacity-70 uppercase">Last Report</div>
+                    </div>
+                </div>
 
-                <p className="text-sm mt-2 opacity-90 leading-relaxed italic">
-                    {score >= 70
-                        ? "WARNING: This entity has been linked to potential fraud. Do not proceed with any transactions. / সাবধান: এই নম্বর/আইডিটি প্রতারণার সাথে জড়িত থাকতে পারে।"
-                        : score >= 30
-                            ? "CAUTION: Some suspicious patterns detected. Verify twice before sending money. / সতর্কতা: কিছু সন্দেহজনক প্যাটার্ন পাওয়া গেছে। লেনদেনের আগে যাচাই করুন।"
-                            : "No major red flags found. However, always remain vigilant. / কোনো বড় ঝুঁকি পাওয়া যায়নি। তবুও সতর্ক থাকুন।"}
-                </p>
+                {/* Warning - Always Shown */}
+                <div className="mt-4 p-3 bg-yellow-100 border border-yellow-300 rounded-lg">
+                    <p className="text-xs text-yellow-800 font-medium">
+                        ⚠️ CheckBhai is community-powered. Always verify before payment.
+                    </p>
+                </div>
             </div>
 
             <div className="mt-6 flex justify-end">

@@ -188,13 +188,25 @@ export default function PaymentPage() {
                             </div>
                         )}
 
-                        <button
-                            onClick={handlePayment}
-                            disabled={loading}
-                            className="w-full bg-white text-black font-black py-4 rounded-2xl text-lg hover:scale-[1.02] transition-all disabled:opacity-50"
-                        >
-                            {loading ? 'PROCESSING...' : `PAY ${amount} ৳`}
-                        </button>
+                        <div className="relative">
+                            {/* Disabled Overlay */}
+                            <div className="absolute inset-0 z-10 bg-[#0a0a0c]/80 backdrop-blur-[2px] rounded-3xl flex flex-col items-center justify-center border-2 border-dashed border-white/10 p-8 text-center">
+                                <span className="text-4xl mb-4">🛡️</span>
+                                <h3 className="text-xl font-black text-white mb-2 uppercase tracking-tighter">Gateway Integration Pending</h3>
+                                <p className="text-xs text-gray-500 font-bold mb-6">bKash and Nagad automation is being verified. <br /> For manual verification services, contact support.</p>
+                                <div className="bg-blue-600 text-white text-[10px] font-black px-4 py-2 rounded-full shadow-lg animate-pulse">
+                                    AVAILABLE IN V1.1
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={handlePayment}
+                                disabled={true}
+                                className="w-full bg-white/10 text-white/30 font-black py-4 rounded-2xl text-lg transition-all cursor-not-allowed"
+                            >
+                                GATEWAY UNAVAILABLE
+                            </button>
+                        </div>
 
                         <p className="text-[9px] text-gray-600 font-bold uppercase text-center mt-6">
                             Secure Transaction Layer &bull; SSL Encryption Standard
