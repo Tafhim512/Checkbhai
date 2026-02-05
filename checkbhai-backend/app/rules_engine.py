@@ -39,7 +39,7 @@ class RulesEngine:
         'percentage': r'(\d+)%',
         'large_numbers': r'(\d+)\s*(lakh|লাখ|thousand|হাজার)',
         'job_fees': r'(registration|visa|processing)\s*(fee|ফি)',
-        'personal_info_request': r'(PIN|password|OTP|পাসওয়ার্ড|পিন)\s*(number|den|দেন)'
+        'personal_info_request': r'(PIN|password|OTP|পাসওয়ার্ড|পিন)'  # Removed "\s*(number|den)" requirement
     }
     
     def __init__(self):
@@ -57,27 +57,27 @@ class RulesEngine:
         # Check for urgency
         if self._contains_keywords(text_lower, self.URGENCY_KEYWORDS):
             self.red_flags.append("⚠️ Creates artificial urgency")
-            risk_score += 20
+            risk_score += 25  # Was 20
         
         # Check for payment requests
         if self._contains_keywords(text_lower, self.PAYMENT_KEYWORDS):
             self.red_flags.append("💰 Requests advance payment")
-            risk_score += 25
+            risk_score += 30  # Was 25
         
         # Check for overpromises
         if self._contains_keywords(text_lower, self.OVERPROMISE_KEYWORDS):
             self.red_flags.append("🎯 Makes unrealistic guarantees")
-            risk_score += 20
+            risk_score += 25  # Was 20
         
         # Check for personal info phishing
         if re.search(self.SUSPICIOUS_PATTERNS['personal_info_request'], text, re.IGNORECASE):
             self.red_flags.append("🔐 Requests sensitive personal information")
-            risk_score += 30
+            risk_score += 60  # Was 30 - Now almost instant High risk
         
         # Check for job/visa fees
         if re.search(self.SUSPICIOUS_PATTERNS['job_fees'], text, re.IGNORECASE):
             self.red_flags.append("📋 Charges fees for job/visa services")
-            risk_score += 25
+            risk_score += 40  # Was 25
         
         # Check for suspiciously low prices
         price_match = re.search(self.SUSPICIOUS_PATTERNS['too_good_prices'], text, re.IGNORECASE)
@@ -86,7 +86,7 @@ class RulesEngine:
             # If price seems too low for common items
             if amount < 20000 and any(word in text_lower for word in ['iphone', 'macbook', 'laptop', 'gold', 'স্বর্ণ']):
                 self.red_flags.append("💸 Suspiciously low price")
-                risk_score += 25
+                risk_score += 30 # Was 25
         
         # Check for high percentage returns
         percent_match = re.search(self.SUSPICIOUS_PATTERNS['percentage'], text)
@@ -94,13 +94,13 @@ class RulesEngine:
             percentage = int(percent_match.group(1))
             if percentage > 50:
                 self.red_flags.append("📈 Promises unrealistic returns")
-                risk_score += 30
+                risk_score += 30 # Was 30
         
         # Check for lottery/prize scams
         if any(word in text_lower for word in ['lottery', 'লটারি', 'prize', 'won', 'jitechen', 'জিতেছেন']):
             if any(word in text_lower for word in ['fee', 'claim', 'ফি', 'processing']):
                 self.red_flags.append("🎰 Unsolicited lottery/prize claim")
-                risk_score += 35
+                risk_score += 50 # Was 35
         
         # Cap risk score at 100
         risk_score = min(risk_score, 100)
