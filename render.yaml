@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: checkbhai
+    runtime: python
+    region: oregon
+    rootDir: checkbhai-backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: SECRET_KEY
+        sync: false
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: LANGCHAIN_API_KEY
+        sync: false
+      - key: LANGCHAIN_TRACING_V2
+        value: "true"
+      - key: LANGCHAIN_PROJECT
+        value: "checkbhai-backend"
+      - key: PYTHON_VERSION
+        value: "3.11.10"
+    healthCheckPath: /health
+    autoDeploy: true

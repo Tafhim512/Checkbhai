@@ -1,0 +1,33 @@
+# CheckBhai Backend Dependencies - Optimized for Python 3.11 on Render
+
+# Force use of pre-built wheels for problematic packages
+--only-binary pandas,numpy,scikit-learn
+
+# FastAPI and web server
+fastapi
+uvicorn[standard]
+python-multipart
+
+# Database
+sqlalchemy
+asyncpg
+aiosqlite
+alembic
+
+# Authentication & Security
+python-jose[cryptography]
+passlib[bcrypt]
+pydantic[email]
+
+# AI/ML - Explicitly pinned for wheel-only installation on 3.11
+pandas==2.1.1
+numpy==1.26.0
+scikit-learn==1.3.2
+
+# Utilities
+python-dotenv
+openai
+httpx
+langchain
+langchain-openai
+langsmith
