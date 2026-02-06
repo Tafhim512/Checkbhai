@@ -96,6 +96,27 @@ class Entity(Base):
     last_checked = Column(DateTime, default=datetime.utcnow)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+
+class EntityClaim(Base):
+    __tablename__ = "entity_claims"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    entity_id = Column(UUID(as_uuid=True), ForeignKey("entities.id"), nullable=False)
+    contact_email = Column(String, nullable=False)
+    business_name = Column(String, nullable=False)
+    verification_doc_url = Column(String, nullable=False)
+    message = Column(Text, nullable=False)
+    status = Column(String, default="pending") # pending, approved, rejected
+    admin_notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationship
+    entity = relationship("Entity", back_populates="claims")
+
+# Add back-populate to Entity
+Entity.claims = relationship("EntityClaim", back_populates="entity")
+
 class Message(Base):
     """Message check history"""
     __tablename__ = "messages"

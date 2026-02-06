@@ -38,6 +38,31 @@ class EntityCheck(BaseModel):
     type: str = Field(..., pattern="^(phone|fb_page|fb_profile|website|bkash|nagad|rocket)$")
     identifier: str = Field(..., min_length=3)
 
+
+# Claim Models (Business Verification)
+class EntityClaimCreate(BaseModel):
+    entity_id: uuid.UUID
+    contact_email: EmailStr
+    business_name: str = Field(..., min_length=2)
+    verification_doc_url: str = Field(..., description="URL to business license or ID")
+    message: str = Field(..., min_length=20, max_length=1000)
+
+class EntityClaimResponse(BaseModel):
+    id: uuid.UUID
+    entity_id: uuid.UUID
+    contact_email: str
+    business_name: str
+    status: str # pending, approved, rejected
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+    trust_level: str
+    scam_probability: float
+    total_reports: int
+    extra_metadata: Optional[dict] = None
+    last_checked: datetime
+
 class EntityResponse(BaseModel):
     id: uuid.UUID
     type: str

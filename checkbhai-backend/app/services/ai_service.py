@@ -4,7 +4,7 @@ import json
 import asyncio
 import logging
 from typing import Dict, List, Optional, Protocol
-from openai import AsyncOpenAI
+import httpx # Use httpx for direct API calls if needed, or openai SDK
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -18,10 +18,14 @@ class AIProvider(Protocol):
     def name(self) -> str:
         ...
 
-class OpenAIProvider:
-    def __init__(self, api_key: str):
-        self.client = AsyncOpenAI(api_key=api_key)
-        self._name = "OpenAI"
+class GrokProvider:
+    """
+    Official xAI Grok Provider
+    """
+    def __init__(self, api_key: str, api_url: str = "https://api.grok.openai.com/v1"):
+        self.api_key = api_key
+        self.api_url = api_url
+        self._name = "Grok (xAI)"
 
     @property
     def name(self) -> str:
@@ -32,130 +36,95 @@ class OpenAIProvider:
         Analyze the following message for potential scam indicators.
         Output high-quality analysis in JSON format:
         {{
-            "is_scam": boolean,
-            "explanation_en": "Reason why it's a scam or legit (English)",
-            "explanation_bn": "Reason why it's a scam or legit (Bangla)",
-            "scam_probability": float (0-1),
+            "explanation_en": "Clear explanation of why this is a scam or safe (English)",
+            "explanation_bn": "Clear explanation of why this is a scam or safe (Bangla)",
             "red_flags": ["list of indicators observed"]
         }}
         Message: "{text}"
         """
+        
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        # Grok Beta API payload structure (OpenAI compatible)
+        payload = {
+            "model": "grok-beta", 
+            "messages": [
+                {"role": "system", "content": "You are a senior security analyst specializing in Bangladeshi fraud patterns. Output raw JSON."},
+                {"role": "user", "content": prompt}
+            ],
+            "max_tokens": 1000
+        }
+
         try:
-            response = await self.client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": "You are a senior security analyst specializing in Bangladeshi fraud patterns."},
-                    {"role": "user", "content": prompt}
-                ],
-                response_format={"type": "json_object"},
-                timeout=15.0
-            )
-            return json.loads(response.choices[0].message.content)
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    f"{self.api_url}/chat/completions", # Adjust based on actual base URL usage
+                    json=payload,
+                    headers=headers
+                )
+                
+                if response.status_code != 200:
+                    logger.error(f"Grok API Error {response.status_code}: {response.text}")
+                    return None
+                    
+                data = response.json()
+                content = data['choices'][0]['message']['content']
+                
+                # Strip markdown blocks if present
+                if "```json" in content:
+                    content = content.replace("```json", "").replace("```", "")
+                
+                return json.loads(content)
+
         except Exception as e:
-            logger.error(f"OpenAI analysis failed: {e}")
-            raise e
-
-class GroqProvider:
-    def __init__(self, api_key: str):
-        self.client = AsyncOpenAI(
-            api_key=api_key,
-            base_url="https://api.groq.com/openai/v1"
-        )
-        self._name = "Groq"
-
-    @property
-    def name(self) -> str:
-        return self._name
-
-    async def analyze_text(self, text: str) -> Optional[Dict]:
-        prompt = f"""
-        Analyze the following message for potential scam indicators.
-        Output high-quality analysis in JSON format:
-        {{
-            "is_scam": boolean,
-            "explanation_en": "Reason why it's a scam or legit (English)",
-            "explanation_bn": "Reason why it's a scam or legit (Bangla)",
-            "scam_probability": float (0-1),
-            "red_flags": ["list of indicators observed"]
-        }}
-        Message: "{text}"
-        """
-        try:
-            # Groq doesn't always support response_format="json_object" depending on model,
-            # but llama-3.3-70b-versatile and 3.1-70b usually do.
-            response = await self.client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                messages=[
-                    {"role": "system", "content": "You are a senior security analyst specializing in Bangladeshi fraud patterns. Always output raw JSON."},
-                    {"role": "user", "content": prompt}
-                ],
-                response_format={"type": "json_object"},
-                timeout=15.0
-            )
-            return json.loads(response.choices[0].message.content)
-        except Exception as e:
-            logger.error(f"Groq analysis failed: {e}")
-            raise e
+            logger.error(f"Grok analysis failed: {e}")
+            return None
 
 class AIService:
     def __init__(self):
-        self.providers: List[AIProvider] = []
-        self.disabled_providers: set = set()
+        self.provider: Optional[AIProvider] = None
         
-        # Log environment status
-        openai_key = os.getenv("OPENAI_API_KEY")
-        groq_key = os.getenv("GROQ_API_KEY")
+        # Load Grok Configuration
+        grok_key = os.getenv("GROK_API_KEY")
+        grok_url = os.getenv("GROK_API_URL", "https://api.x.ai/v1")
         
-        logger.info(f"ENV loaded = TRUE")
-        logger.info(f"OPENAI_API_KEY present: {bool(openai_key and not openai_key.startswith('your-'))}")
-        logger.info(f"GROQ_API_KEY present: {bool(groq_key and not groq_key.startswith('your-') and not groq_key.startswith('gsk_your'))}")
-        
-        # Initialize providers based on ENV (Groq first as it's free)
-        if groq_key and not groq_key.startswith("your-") and not groq_key.startswith("gsk_your"):
-            self.providers.append(GroqProvider(groq_key))
-            logger.info("✓ Groq provider initialized (primary)")
-            
-        if openai_key and not openai_key.startswith("your-") and not openai_key.startswith("sk-proj-your"):
-            self.providers.append(OpenAIProvider(openai_key))
-            logger.info("✓ OpenAI provider initialized (fallback)")
-            
-        if not self.providers:
-            logger.warning("⚠ No AI providers initialized. Falling back to rules engine only.")
+        if grok_key:
+            self.provider = GrokProvider(grok_key, grok_url)
+            logger.info("✓ Grok provider initialized")
+        else:
+            logger.warning("⚠ GROK_API_KEY not found. AI features disabled.")
 
     async def analyze_message(self, text: str) -> Dict:
         """
-        Tries providers in order. Falls back to next if one fails.
+        Analyzes message using Grok.
         """
-        for provider in self.providers:
-            if provider.name in self.disabled_providers:
-                continue
+        if not self.provider:
+            return self._get_fallback_response()
 
-            logger.info(f"Attempting analysis with {provider.name}...")
-            try:
-                result = await provider.analyze_text(text)
-                if result:
-                    result["provider"] = provider.name
-                    return result
-            except Exception as e:
-                # If we get a 401 (Unauthorized) or 429 (Quota), disable this provider
-                if "401" in str(e) or "429" in str(e) or "auth" in str(e).lower():
-                    logger.warning(f"Disabling {provider.name} due to credential/quota error: {e}")
-                    self.disabled_providers.add(provider.name)
-                else:
-                    logger.error(f"{provider.name} failed with non-auth error: {e}")
+        logger.info(f"Attempting analysis with {self.provider.name}...")
+        result_text = await self.provider.analyze_text(text)
         
-        # Absolute fallback if all providers fail or are missing
+        if result_text:
+            return {
+                "explanation_en": result_text.get("explanation_en"),
+                "explanation_bn": result_text.get("explanation_bn"),
+                "provider": self.provider.name,
+                "red_flags": result_text.get("red_flags", [])
+            }
+        
+        return self._get_fallback_response()
+
+    def _get_fallback_response(self):
         return {
-            "is_scam": False,
-            "prediction": "Unknown",
-            "confidence": 0.0,
-            "explanation_en": "Analysis completed using pattern matching (Deep AI unavailable).",
-            "explanation_bn": "প্যাটার্ন ম্যাচিং ব্যবহার করে বিশ্লেষণ সম্পন্ন হয়েছে (ডিপ এআই অপশনটি বর্তমানে অফলাইন)।",
-            "red_flags": [],
-            "provider": "None"
+            "explanation_en": "Analysis completed using pattern matching (AI unavailable).",
+            "explanation_bn": "প্যাটার্ন ম্যাচিং ব্যবহার করে বিশ্লেষণ সম্পন্ন হয়েছে (AI অফলাইন)।",
+            "provider": "None",
+            "red_flags": []
         }
 
-# Global singleton
 _ai_service = None
 
 def get_ai_service() -> AIService:

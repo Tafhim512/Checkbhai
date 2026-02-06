@@ -10,7 +10,7 @@ import os
 
 from app.database import init_db, create_admin_user
 from app.ai_engine import get_ai_engine
-from app.routers import auth, check, history, payment, admin, entities, reports
+from app.routers import auth, check, history, payment, admin, entities, reports, claims
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -87,6 +87,7 @@ app.include_router(payment.router)
 app.include_router(admin.router)
 app.include_router(entities.router)
 app.include_router(reports.router)
+app.include_router(claims.router)
 
 @app.get("/")
 async def root():
