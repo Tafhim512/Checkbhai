@@ -172,6 +172,12 @@ export const api = {
         return response.data;
     },
 
+    // Business Claims
+    claimEntity: async (data: any) => {
+        const response = await apiClient.post('/claims/', data);
+        return response.data;
+    },
+
     // Admin
     getAdminStats: async () => {
         const response = await apiClient.get('/admin/stats');

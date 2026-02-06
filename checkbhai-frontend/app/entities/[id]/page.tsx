@@ -169,12 +169,18 @@ export default function EntityDetailPage() {
                     )}
                 </div>
 
-                <div className="mt-12 text-center">
+                <div className="mt-12 flex flex-col md:flex-row justify-center gap-4">
                     <button
                         onClick={() => router.push(`/report?type=${entity.type}&identifier=${entity.identifier}&entity_id=${entity.id}`)}
-                        className="bg-red-600 hover:bg-red-700 text-white font-black py-4 px-12 rounded-2xl shadow-xl transition-all uppercase tracking-widest text-sm"
+                        className="bg-red-600 hover:bg-red-700 text-white font-black py-4 px-8 rounded-2xl shadow-xl transition-all uppercase tracking-widest text-sm"
                     >
                         🚩 File a New Report
+                    </button>
+                    <button
+                        onClick={() => router.push(`/claim?entityId=${entity.id}&identifier=${entity.identifier}&type=${entity.type}`)}
+                        className="bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white font-bold py-4 px-8 rounded-2xl border border-white/5 transition-all uppercase tracking-widest text-sm"
+                    >
+                        🛡️ Claim This Profile
                     </button>
                 </div>
             </div>

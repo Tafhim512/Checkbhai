@@ -6,6 +6,7 @@ Using SQLAlchemy with async support
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, String, Boolean, DateTime, Float, Integer, Text, ForeignKey, JSON
+from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
 from datetime import datetime
@@ -100,6 +101,9 @@ class Entity(Base):
     extra_metadata = Column(JSON, nullable=True)
     last_checked = Column(DateTime, default=datetime.utcnow)
     created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    claims = relationship("EntityClaim", back_populates="entity")
 
 class Message(Base):
     """Message check history"""
@@ -143,10 +147,26 @@ class Evidence(Base):
     file_url = Column(String(512), nullable=False)
     file_type = Column(String(50), nullable=False)  # image, pdf
     ai_validation_status = Column(String(20), default="pending")
-    extra_metadata = Column(JSON, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+class EntityClaim(Base):
+    __tablename__ = "entity_claims"
 
-class Vote(Base):
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    entity_id = Column(UUID(as_uuid=True), ForeignKey("entities.id"), nullable=False)
+    contact_email = Column(String, nullable=False)
+    business_name = Column(String, nullable=False)
+    verification_doc_url = Column(String, nullable=False)
+    message = Column(Text, nullable=False)
+    status = Column(String, default="pending") # pending, approved, rejected
+    admin_notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationship
+    entity = relationship("Entity", back_populates="claims")
+
+# Add back-populate to Entity - This must be outside the class to reference the class itself if needed, 
+# but here we can just update the Entity class directly if preferred or do it post-declaration.
+# For simplicity with SQLAlchemy declarative base, let's keep it clean.
     """Community verification votes"""
     __tablename__ = "votes"
     

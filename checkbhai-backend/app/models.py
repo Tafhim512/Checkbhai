@@ -175,5 +175,20 @@ class TrainingDataCreate(BaseModel):
     label: str = Field(..., pattern="^(Scam|Legit)$")
     category: Optional[str] = None
 
-class RetrainRequest(BaseModel):
-    training_data: List[TrainingDataCreate]
+class EntityClaimCreate(BaseModel):
+    entity_id: uuid.UUID
+    contact_email: EmailStr
+    business_name: str = Field(..., min_length=2)
+    verification_doc_url: str = Field(..., description="URL to business license or ID")
+    message: str = Field(..., min_length=20, max_length=1000)
+
+class EntityClaimResponse(BaseModel):
+    id: uuid.UUID
+    entity_id: uuid.UUID
+    contact_email: str
+    business_name: str
+    status: str # pending, approved, rejected
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
