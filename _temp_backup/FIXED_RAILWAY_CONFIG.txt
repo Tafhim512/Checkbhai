@@ -1,0 +1,68 @@
+# ✅ CORRECTED RAILWAY ENVIRONMENT VARIABLES
+# These are the exact values you need to enter in Railway
+
+# ========================================
+# Variable Name: DATABASE_URL
+# Value (copy everything below this line):
+postgresql+asyncpg://postgres:kaynat103286@db.finpvpvbagygdsqugxao.supabase.co:5432/postgres
+
+# ========================================
+# Variable Name: SECRET_KEY
+# Value (copy everything below this line):
+a9ff1c327cdef1cf7eeb908c86f2bc51b2078fde4c8453ac09e2e5ed92862f71
+
+# ========================================
+# Variable Name: ADMIN_EMAIL
+# Value (copy everything below this line):
+admin@checkbhai.com
+
+# ========================================
+# Variable Name: ADMIN_PASSWORD
+# Value (copy everything below this line):
+kaynat103286
+
+# ========================================
+# Variable Name: PORT
+# Value (copy everything below this line):
+8000
+
+# ========================================
+# Variable Name: ALLOWED_ORIGINS
+# Value (copy everything below this line):
+https://checkbhai.vercel.app,https://checkbhai-*.vercel.app
+
+# ========================================
+# ⚠️ CRITICAL FIXES FROM YOUR ORIGINAL:
+# 
+# 1. DATABASE_URL: Added "+asyncpg" after "postgresql"
+#    YOUR ORIGINAL: postgresql://postgres:kaynat...
+#    CORRECTED:      postgresql+asyncpg://postgres:kaynat...
+#    WHY: Python async requires asyncpg dialect
+#
+# 2. SECRET_KEY: Generated actual random key
+#    YOUR ORIGINAL: "openssl rand -hex 32" (the command, not output)
+#    CORRECTED:      a9ff1c327cdef1cf7eeb908c86f2bc51b2078fde4c8453ac09e2e5ed92862f71
+#    WHY: Railway needs the actual key, not the command
+#
+# ========================================
+# HOW TO USE IN RAILWAY:
+#
+# 1. Go to your Railway project
+# 2. Click on your service
+# 3. Go to "Variables" tab
+# 4. For EACH variable above:
+#    - Click "New Variable"
+#    - Enter the variable name (e.g., DATABASE_URL)
+#    - Copy the value EXACTLY as shown
+#    - Click "Add"
+# 5. After all 6 variables are added, Railway will auto-redeploy
+#
+# ========================================
+# ALSO VERIFY THESE SETTINGS:
+#
+# Root Directory: checkbhai-backend
+# Build Command: pip install -r requirements.txt
+# Start Command: python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT
+# Python Version: 3.11+ (auto-detected)
+#
+# ========================================

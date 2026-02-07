@@ -1,0 +1,4 @@
+Deployment Trigger: v3.1
+Timestamp: 2026-02-06
+Reason: Force Render/Vercel cache clear and code update.
+STATUS: FIXES_APPLIED

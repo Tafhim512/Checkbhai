@@ -292,6 +292,102 @@ async def debug_ai():
         
     return status
 
+@app.get("/migrate")
+async def run_migration():
+    """Run database migrations to fix missing columns"""
+    from sqlalchemy.ext.asyncio import create_async_engine
+    from sqlalchemy import text
+    import re
+    import os
+    
+    DATABASE_URL = os.getenv("DATABASE_URL", "")
+    
+    if not DATABASE_URL:
+        return {"status": "error", "message": "DATABASE_URL not set"}
+    
+    # Ensure the dialect is postgresql+asyncpg
+    if DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
+    elif DATABASE_URL.startswith("postgresql://"):
+        DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+    
+    # Strip SSL parameters
+    DATABASE_URL = re.sub(r'[?&]sslmode=[^&]*', '', DATABASE_URL)
+    DATABASE_URL = re.sub(r'[?&]ssl=[^&]*', '', DATABASE_URL)
+    DATABASE_URL = DATABASE_URL.rstrip('?&')
+    
+    print("🔄 Running database migration...")
+    
+    engine = create_async_engine(
+        DATABASE_URL,
+        echo=False,
+        future=True,
+        pool_pre_ping=True,
+        connect_args={
+            "statement_cache_size": 0,
+            "command_timeout": 60,
+        }
+    )
+    
+    migrations_applied = []
+    
+    async with engine.begin() as conn:
+        # Check and add scam_reports column
+        try:
+            await conn.execute(text("SELECT scam_reports FROM entities LIMIT 1"))
+            migrations_applied.append({"column": "scam_reports", "status": "already_exists"})
+        except Exception as e:
+            if "scam_reports" in str(e):
+                await conn.execute(text("ALTER TABLE entities ADD COLUMN scam_reports INTEGER DEFAULT 0 NOT NULL"))
+                migrations_applied.append({"column": "scam_reports", "status": "added"})
+            else:
+                raise
+        
+        # Check and add verified_reports column
+        try:
+            await conn.execute(text("SELECT verified_reports FROM entities LIMIT 1"))
+            migrations_applied.append({"column": "verified_reports", "status": "already_exists"})
+        except Exception as e:
+            if "verified_reports" in str(e):
+                await conn.execute(text("ALTER TABLE entities ADD COLUMN verified_reports INTEGER DEFAULT 0 NOT NULL"))
+                migrations_applied.append({"column": "verified_reports", "status": "added"})
+            else:
+                raise
+        
+        # Check and add report_trend column
+        try:
+            await conn.execute(text("SELECT report_trend FROM entities LIMIT 1"))
+            migrations_applied.append({"column": "report_trend", "status": "already_exists"})
+        except Exception as e:
+            if "report_trend" in str(e):
+                await conn.execute(text("ALTER TABLE entities ADD COLUMN report_trend VARCHAR(20) DEFAULT 'Stable'"))
+                migrations_applied.append({"column": "report_trend", "status": "added"})
+            else:
+                raise
+        
+        # Check and add confidence_level column
+        try:
+            await conn.execute(text("SELECT confidence_level FROM entities LIMIT 1"))
+            migrations_applied.append({"column": "confidence_level", "status": "already_exists"})
+        except Exception as e:
+            if "confidence_level" in str(e):
+                await conn.execute(text("ALTER TABLE entities ADD COLUMN confidence_level VARCHAR(20) DEFAULT 'Low'"))
+                migrations_applied.append({"column": "confidence_level", "status": "added"})
+            else:
+                raise
+        
+        # Update existing rows
+        await conn.execute(text("UPDATE entities SET scam_reports = 0 WHERE scam_reports IS NULL"))
+        await conn.execute(text("UPDATE entities SET verified_reports = 0 WHERE verified_reports IS NULL"))
+    
+    await engine.dispose()
+    
+    return {
+        "status": "success", 
+        "message": "Migration completed",
+        "migrations": migrations_applied
+    }
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", "8000"))
