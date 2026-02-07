@@ -210,14 +210,14 @@ User Input (Message/Entity)
 
 ### Backend (Render)
 - **URL**: https://checkbhai.onrender.com
-- **Branch**: `feature/v1`
+- **Branch**: `main`
 - **Root Directory**: `checkbhai-backend`
 - **Build Command**: `pip install -r requirements.txt`
 - **Start Command**: `python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT`
 
 ### Frontend (Vercel)
 - **URL**: https://checkbhai.vercel.app
-- **Branch**: `feature/v1`
+- **Branch**: `main`
 - **Root Directory**: `checkbhai-frontend`
 - **Framework**: Next.js
 - **Environment Variable**: `NEXT_PUBLIC_API_URL=https://checkbhai.onrender.com`
