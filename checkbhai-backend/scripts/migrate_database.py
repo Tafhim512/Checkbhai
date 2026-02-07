@@ -51,69 +51,51 @@ async def run_migration():
     )
     
     async with engine.begin() as conn:
-        print("Checking for missing columns...")
+        print("Checking/Updating entities table...")
         
-        # Migration 1: Add scam_reports column if missing
+        # Migration 1: scam_reports
         try:
-            await conn.execute(text("SELECT scam_reports FROM entities LIMIT 1"))
-            print("✅ Column 'scam_reports' already exists")
+            await conn.execute(text("ALTER TABLE entities ADD COLUMN IF NOT EXISTS scam_reports INTEGER DEFAULT 0 NOT NULL"))
+            print("✅ Column 'scam_reports' ready")
         except Exception as e:
-            if "scam_reports" in str(e):
-                print("➕ Adding 'scam_reports' column...")
-                await conn.execute(text("""
-                    ALTER TABLE entities 
-                    ADD COLUMN scam_reports INTEGER DEFAULT 0 NOT NULL
-                """))
-                print("✅ Added 'scam_reports' column")
-            else:
-                raise
+            print(f"⚠️ Error with 'scam_reports': {e}")
         
-        # Migration 2: Add verified_reports column if missing
+        # Migration 2: verified_reports
         try:
-            await conn.execute(text("SELECT verified_reports FROM entities LIMIT 1"))
-            print("✅ Column 'verified_reports' already exists")
+            await conn.execute(text("ALTER TABLE entities ADD COLUMN IF NOT EXISTS verified_reports INTEGER DEFAULT 0 NOT NULL"))
+            print("✅ Column 'verified_reports' ready")
         except Exception as e:
-            if "verified_reports" in str(e):
-                print("➕ Adding 'verified_reports' column...")
-                await conn.execute(text("""
-                    ALTER TABLE entities 
-                    ADD COLUMN verified_reports INTEGER DEFAULT 0 NOT NULL
-                """))
-                print("✅ Added 'verified_reports' column")
-            else:
-                raise
+            print(f"⚠️ Error with 'verified_reports': {e}")
         
-        # Migration 3: Add report_trend column if missing (optional, has default)
+        # Migration 3: report_trend
         try:
-            await conn.execute(text("SELECT report_trend FROM entities LIMIT 1"))
-            print("✅ Column 'report_trend' already exists")
+            await conn.execute(text("ALTER TABLE entities ADD COLUMN IF NOT EXISTS report_trend VARCHAR(20) DEFAULT 'Stable'"))
+            print("✅ Column 'report_trend' ready")
         except Exception as e:
-            if "report_trend" in str(e):
-                print("➕ Adding 'report_trend' column...")
-                await conn.execute(text("""
-                    ALTER TABLE entities 
-                    ADD COLUMN report_trend VARCHAR(20) DEFAULT 'Stable'
-                """))
-                print("✅ Added 'report_trend' column")
-            else:
-                raise
+            print(f"⚠️ Error with 'report_trend': {e}")
         
-        # Migration 4: Add confidence_level column if missing
+        # Migration 4: confidence_level
         try:
-            await conn.execute(text("SELECT confidence_level FROM entities LIMIT 1"))
-            print("✅ Column 'confidence_level' already exists")
+            await conn.execute(text("ALTER TABLE entities ADD COLUMN IF NOT EXISTS confidence_level VARCHAR(20) DEFAULT 'Low'"))
+            print("✅ Column 'confidence_level' ready")
         except Exception as e:
-            if "confidence_level" in str(e):
-                print("➕ Adding 'confidence_level' column...")
-                await conn.execute(text("""
-                    ALTER TABLE entities 
-                    ADD COLUMN confidence_level VARCHAR(20) DEFAULT 'Low'
-                """))
-                print("✅ Added 'confidence_level' column")
-            else:
-                raise
-        
-        # Update existing rows to have default values
+            print(f"⚠️ Error with 'confidence_level': {e}")
+
+        # Migration 5: risk_status
+        try:
+            await conn.execute(text("ALTER TABLE entities ADD COLUMN IF NOT EXISTS risk_status VARCHAR(30) DEFAULT 'Insufficient Data'"))
+            print("✅ Column 'risk_status' ready")
+        except Exception as e:
+            print(f"⚠️ Error with 'risk_status': {e}")
+
+        # Migration 6: last_reported_date
+        try:
+            await conn.execute(text("ALTER TABLE entities ADD COLUMN IF NOT EXISTS last_reported_date TIMESTAMP WITHOUT TIME ZONE"))
+            print("✅ Column 'last_reported_date' ready")
+        except Exception as e:
+            print(f"⚠️ Error with 'last_reported_date': {e}")
+            
+        # Update existing rows to have default values (Safe updates)
         print("\nUpdating existing records...")
         await conn.execute(text("""
             UPDATE entities 

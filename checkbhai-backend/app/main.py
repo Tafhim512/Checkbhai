@@ -332,49 +332,47 @@ async def run_migration():
     migrations_applied = []
     
     async with engine.begin() as conn:
-        # Check and add scam_reports column
+        # scam_reports
         try:
-            await conn.execute(text("SELECT scam_reports FROM entities LIMIT 1"))
-            migrations_applied.append({"column": "scam_reports", "status": "already_exists"})
+            await conn.execute(text("ALTER TABLE entities ADD COLUMN IF NOT EXISTS scam_reports INTEGER DEFAULT 0 NOT NULL"))
+            migrations_applied.append({"column": "scam_reports", "status": "ready"})
         except Exception as e:
-            if "scam_reports" in str(e):
-                await conn.execute(text("ALTER TABLE entities ADD COLUMN scam_reports INTEGER DEFAULT 0 NOT NULL"))
-                migrations_applied.append({"column": "scam_reports", "status": "added"})
-            else:
-                raise
+            migrations_applied.append({"column": "scam_reports", "status": "error", "message": str(e)})
         
-        # Check and add verified_reports column
+        # verified_reports
         try:
-            await conn.execute(text("SELECT verified_reports FROM entities LIMIT 1"))
-            migrations_applied.append({"column": "verified_reports", "status": "already_exists"})
+            await conn.execute(text("ALTER TABLE entities ADD COLUMN IF NOT EXISTS verified_reports INTEGER DEFAULT 0 NOT NULL"))
+            migrations_applied.append({"column": "verified_reports", "status": "ready"})
         except Exception as e:
-            if "verified_reports" in str(e):
-                await conn.execute(text("ALTER TABLE entities ADD COLUMN verified_reports INTEGER DEFAULT 0 NOT NULL"))
-                migrations_applied.append({"column": "verified_reports", "status": "added"})
-            else:
-                raise
+            migrations_applied.append({"column": "verified_reports", "status": "error", "message": str(e)})
         
-        # Check and add report_trend column
+        # report_trend
         try:
-            await conn.execute(text("SELECT report_trend FROM entities LIMIT 1"))
-            migrations_applied.append({"column": "report_trend", "status": "already_exists"})
+            await conn.execute(text("ALTER TABLE entities ADD COLUMN IF NOT EXISTS report_trend VARCHAR(20) DEFAULT 'Stable'"))
+            migrations_applied.append({"column": "report_trend", "status": "ready"})
         except Exception as e:
-            if "report_trend" in str(e):
-                await conn.execute(text("ALTER TABLE entities ADD COLUMN report_trend VARCHAR(20) DEFAULT 'Stable'"))
-                migrations_applied.append({"column": "report_trend", "status": "added"})
-            else:
-                raise
+            migrations_applied.append({"column": "report_trend", "status": "error", "message": str(e)})
         
-        # Check and add confidence_level column
+        # confidence_level
         try:
-            await conn.execute(text("SELECT confidence_level FROM entities LIMIT 1"))
-            migrations_applied.append({"column": "confidence_level", "status": "already_exists"})
+            await conn.execute(text("ALTER TABLE entities ADD COLUMN IF NOT EXISTS confidence_level VARCHAR(20) DEFAULT 'Low'"))
+            migrations_applied.append({"column": "confidence_level", "status": "ready"})
         except Exception as e:
-            if "confidence_level" in str(e):
-                await conn.execute(text("ALTER TABLE entities ADD COLUMN confidence_level VARCHAR(20) DEFAULT 'Low'"))
-                migrations_applied.append({"column": "confidence_level", "status": "added"})
-            else:
-                raise
+            migrations_applied.append({"column": "confidence_level", "status": "error", "message": str(e)})
+
+        # risk_status
+        try:
+            await conn.execute(text("ALTER TABLE entities ADD COLUMN IF NOT EXISTS risk_status VARCHAR(30) DEFAULT 'Insufficient Data'"))
+            migrations_applied.append({"column": "risk_status", "status": "ready"})
+        except Exception as e:
+            migrations_applied.append({"column": "risk_status", "status": "error", "message": str(e)})
+
+        # last_reported_date
+        try:
+            await conn.execute(text("ALTER TABLE entities ADD COLUMN IF NOT EXISTS last_reported_date TIMESTAMP WITHOUT TIME ZONE"))
+            migrations_applied.append({"column": "last_reported_date", "status": "ready"})
+        except Exception as e:
+            migrations_applied.append({"column": "last_reported_date", "status": "error", "message": str(e)})
         
         # Update existing rows
         await conn.execute(text("UPDATE entities SET scam_reports = 0 WHERE scam_reports IS NULL"))
