@@ -236,12 +236,42 @@ async def get_db():
             await session.close()
 
 async def init_db():
-    """Initialize database tables with connection verification"""
-    print(f"DEBUG: Attempting to connect to DB...")
+    """Initialize database tables and run migrations for existing tables"""
+    print(f"DEBUG: Attempting to connect to DB for initialization...")
     async with engine.begin() as conn:
-        print("DEBUG: Connection established, creating tables...")
+        # 1. Create tables if they don't exist
+        print("DEBUG: Connection established, ensuring tables exist...")
         await conn.run_sync(Base.metadata.create_all)
-    print("Database initialized successfully")
+        
+        # 2. Safe migrations for existing tables (Production Fix)
+        print("DEBUG: Running safe migrations (ALTER TABLE ... ADD COLUMN IF NOT EXISTS)...")
+        from sqlalchemy import text
+        
+        # entities table columns
+        columns = [
+            ("scam_reports", "INTEGER DEFAULT 0 NOT NULL"),
+            ("verified_reports", "INTEGER DEFAULT 0 NOT NULL"),
+            ("report_trend", "VARCHAR(20) DEFAULT 'Stable'"),
+            ("confidence_level", "VARCHAR(20) DEFAULT 'Low'"),
+            ("risk_status", "VARCHAR(30) DEFAULT 'Insufficient Data'"),
+            ("last_reported_date", "TIMESTAMP WITHOUT TIME ZONE")
+        ]
+        
+        for col_name, col_type in columns:
+            try:
+                await conn.execute(text(f"ALTER TABLE entities ADD COLUMN IF NOT EXISTS {col_name} {col_type}"))
+                print(f"✅ Column 'entities.{col_name}' ready")
+            except Exception as e:
+                print(f"⚠️ Note: entities.{col_name} migration info: {e}")
+        
+        # Ensure default values for existing rows
+        try:
+            await conn.execute(text("UPDATE entities SET scam_reports = 0 WHERE scam_reports IS NULL"))
+            await conn.execute(text("UPDATE entities SET verified_reports = 0 WHERE verified_reports IS NULL"))
+        except:
+            pass
+            
+    print("Database initialization and migration completed")
 
 async def create_admin_user(email: str, password: str):
     """Create an admin user"""
